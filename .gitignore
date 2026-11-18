@@ -1,0 +1,11 @@
+# Thư mục thư viện & build (Tuyệt đối không đẩy lên Git)
+node_modules/
+.next/
+out/
+build/
+
+# File môi trường & cache
+.env
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
