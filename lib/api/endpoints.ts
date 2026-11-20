@@ -1,119 +1,147 @@
 export const ENDPOINTS = {
-  // Auth
+  // Auth & Account
   AUTH: {
-    LOGIN: '/auth/login/',
-    LOGOUT: '/auth/logout/',
-    REFRESH: '/auth/token/refresh/',
-    FORGOT_PASSWORD: '/auth/forgot-password/',
-    RESET_PASSWORD: '/auth/reset-password/',
-    ME: '/auth/me/',
-    CHANGE_PASSWORD: '/auth/change-password/',
+    LOGIN: '/api/auth/login',
+    REFRESH: '/api/auth/refresh',
+    FORGOT_PASSWORD: '/api/auth/forgot-password',
+    RESET_PASSWORD: '/api/auth/reset-password',
+    ME: '/api/common/profile',
+    CHANGE_PASSWORD: '/api/common/change-password',
+    LOGOUT: '/api/common/logout',
+    LOGOUT_ALL: '/api/common/logout-all',
   },
 
-  // Users
+  // Admin Accounts & Groups
   USERS: {
-    LIST: '/users/',
-    DETAIL: (id: number) => `/users/${id}/`,
-    CREATE: '/users/',
-    UPDATE: (id: number) => `/users/${id}/`,
-    DELETE: (id: number) => `/users/${id}/`,
-    AVATAR: (id: number) => `/users/${id}/avatar/`,
-    GROUPS: '/users/groups/',
-    GROUP_DETAIL: (id: number) => `/users/groups/${id}/`,
+    LIST: '/api/admin/accounts/getAll',
+    BY_ROLE: (role: string) => `/api/admin/accounts/getByRole?role=${role}`,
+    CREATE: '/api/admin/accounts',
+    UPDATE: '/api/admin/accounts',
+    DELETE: (id: string | number) => `/api/admin/accounts?IdUser=${id}`,
+    GROUPS: '/api/admin/groups',
+    GROUP_DETAIL: (groupId: string | number) => `/api/admin/groups/${groupId}`,
+    GROUP_MEMBERS: (groupId: string | number) => `/api/admin/groups/${groupId}/members`,
   },
 
-  // Courses
+  // Courses (Learning)
   COURSES: {
-    LIST: '/courses/',
-    DETAIL: (id: number) => `/courses/${id}/`,
-    CREATE: '/courses/',
-    UPDATE: (id: number) => `/courses/${id}/`,
-    DELETE: (id: number) => `/courses/${id}/`,
-    PUBLISH: (id: number) => `/courses/${id}/publish/`,
-    ENROLL: (id: number) => `/courses/${id}/enroll/`,
-    MY_COURSES: '/courses/my-courses/',
+    // Admin
+    LIST: '/api/admin/learning/courses',
+    CREATE: '/api/admin/learning/courses',
+    UPDATE: (id: string | number) => `/api/admin/learning/courses/${id}`,
+    DELETE: (id: string | number) => `/api/admin/learning/courses/${id}`,
+    ADD_LESSON: (courseId: string | number, lessonId: string | number) =>
+      `/api/admin/learning/courses/${courseId}/lessons/${lessonId}`,
+    REMOVE_LESSON: (courseId: string | number, lessonId: string | number) =>
+      `/api/admin/learning/courses/${courseId}/lessons/${lessonId}`,
+
+    // Student
+    STUDENT_LIST: '/api/student/learning/courses',
+    STUDENT_DETAIL: (courseId: string | number) => `/api/student/learning/courses/${courseId}`,
   },
 
-  // Lessons
+  // Lessons (Learning)
   LESSONS: {
-    LIST: (courseId: number) => `/courses/${courseId}/lessons/`,
-    DETAIL: (courseId: number, lessonId: number) => `/courses/${courseId}/lessons/${lessonId}/`,
-    CREATE: (courseId: number) => `/courses/${courseId}/lessons/`,
-    UPDATE: (courseId: number, lessonId: number) => `/courses/${courseId}/lessons/${lessonId}/`,
-    DELETE: (courseId: number, lessonId: number) => `/courses/${courseId}/lessons/${lessonId}/`,
-    REORDER: (courseId: number) => `/courses/${courseId}/lessons/reorder/`,
-    ATTACHMENTS: (courseId: number, lessonId: number) => `/courses/${courseId}/lessons/${lessonId}/attachments/`,
-    ATTACHMENT_DELETE: (courseId: number, lessonId: number, attachId: number) =>
-      `/courses/${courseId}/lessons/${lessonId}/attachments/${attachId}/`,
+    // Admin
+    LIST: (unassigned: boolean = false) => `/api/admin/learning/lessons?unassigned=${unassigned}`,
+    CREATE: '/api/admin/learning/lessons',
+    UPDATE: (lessonId: string | number) => `/api/admin/learning/lessons/${lessonId}`,
+    DELETE: (lessonId: string | number) => `/api/admin/learning/lessons/${lessonId}`,
+
+    // Student
+    STUDENT_DETAIL: (lessonId: string | number) => `/api/student/learning/lessons/${lessonId}`,
+    COMPLETE: (lessonId: string | number) => `/api/student/learning/lessons/${lessonId}/complete`,
+    UNCOMPLETE: (lessonId: string | number) => `/api/student/learning/lessons/${lessonId}/complete`,
   },
 
   // Quizzes
   QUIZZES: {
-    LIST: (courseId: number) => `/courses/${courseId}/quizzes/`,
-    DETAIL: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/`,
-    CREATE: (courseId: number) => `/courses/${courseId}/quizzes/`,
-    UPDATE: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/`,
-    DELETE: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/`,
-    QUESTIONS: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/questions/`,
-    ATTEMPT: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/attempt/`,
-    SUBMIT: (courseId: number, quizId: number, attemptId: number) =>
-      `/courses/${courseId}/quizzes/${quizId}/attempts/${attemptId}/submit/`,
-    RESULTS: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/results/`,
-    MY_RESULTS: (courseId: number, quizId: number) => `/courses/${courseId}/quizzes/${quizId}/my-results/`,
+    // Admin
+    LIST: '/api/admin/quizzes',
+    DETAIL: (quizId: string | number) => `/api/admin/quizzes/${quizId}`,
+    CREATE: '/api/admin/quizzes',
+    UPDATE: (quizId: string | number) => `/api/admin/quizzes/${quizId}`,
+    QUESTIONS: (quizId: string | number) => `/api/admin/quizzes/${quizId}/questions`,
+    DELETE: (quizId: string | number, force: boolean = false) =>
+      `/api/admin/quizzes/${quizId}?force=${force}`,
+    RESULTS: (quizId: string | number) => `/api/admin/quizzes/${quizId}/results`,
+    EXTRACT_QUESTIONS: '/api/admin/quizzes/extract-questions',
+
+    // Student
+    STUDENT_LIST: '/api/student/quizzes',
+    START: (quizId: string | number) => `/api/student/quizzes/${quizId}/start`,
+    SUBMIT: (quizId: string | number) => `/api/student/quizzes/${quizId}/submit`,
+    STUDENT_RESULTS: (quizId: string | number) => `/api/student/quizzes/${quizId}/results`,
   },
 
   // Projects
   PROJECTS: {
-    LIST: (courseId: number) => `/courses/${courseId}/projects/`,
-    DETAIL: (courseId: number, projectId: number) => `/courses/${courseId}/projects/${projectId}/`,
-    CREATE: (courseId: number) => `/courses/${courseId}/projects/`,
-    UPDATE: (courseId: number, projectId: number) => `/courses/${courseId}/projects/${projectId}/`,
-    DELETE: (courseId: number, projectId: number) => `/courses/${courseId}/projects/${projectId}/`,
-    SUBMISSIONS: (courseId: number, projectId: number) => `/courses/${courseId}/projects/${projectId}/submissions/`,
-    SUBMIT: (courseId: number, projectId: number) => `/courses/${courseId}/projects/${projectId}/submit/`,
-    GRADE: (courseId: number, projectId: number, submissionId: number) =>
-      `/courses/${courseId}/projects/${projectId}/submissions/${submissionId}/grade/`,
-    MY_SUBMISSION: (courseId: number, projectId: number) =>
-      `/courses/${courseId}/projects/${projectId}/my-submission/`,
+    // Admin
+    LIST: '/api/admin/projects',
+    DETAIL: (id: string | number) => `/api/admin/projects/${id}`,
+    CREATE: '/api/admin/projects',
+    UPDATE: (id: string | number) => `/api/admin/projects/${id}`,
+    DELETE: (id: string | number) => `/api/admin/projects/${id}`,
+    SUBMISSIONS: (id: string | number) => `/api/admin/projects/${id}/submissions`,
+    GRADE: (submissionId: string | number) => `/api/admin/projects/submissions/${submissionId}/grade`,
+
+    // Student
+    STUDENT_LIST: '/api/student/projects',
+    STUDENT_DETAIL: (id: string | number) => `/api/student/projects/${id}`,
+    SUBMIT: '/api/student/projects/submit',
+    MY_SUBMISSION: (id: string | number) => `/api/student/projects/${id}/submissions/me`,
   },
 
   // Problems (Coding Judge)
   PROBLEMS: {
-    LIST: '/problems/',
-    DETAIL: (id: string) => `/problems/${id}/`,
-    CREATE: '/problems/',
-    UPDATE: (id: string) => `/problems/${id}/`,
-    DELETE: (id: string) => `/problems/${id}/`,
-    TESTCASES: (id: string) => `/problems/${id}/testcases/`,
-    TESTCASE_DETAIL: (problemId: string, testCaseId: string) => `/problems/${problemId}/testcases/${testCaseId}/`,
-    SUBMISSIONS: (id: string) => `/problems/${id}/submissions/`,
-    SUBMISSION_DETAIL: (problemId: string, submissionId: string) => `/problems/${problemId}/submissions/${submissionId}/`,
-    RUN: (id: string) => `/problems/${id}/run/`,
-    SUBMIT: (id: string) => `/problems/${id}/submit/`,
-    MY_SUBMISSIONS: (id: string) => `/problems/${id}/my-submissions/`,
-    GRADE_SUBMISSION: (problemId: string, submissionId: string) => `/problems/${problemId}/submissions/${submissionId}/grade/`,
-    COMMENTS: (submissionId: string) => `/submissions/${submissionId}/comments/`,
+    // Admin
+    LIST: '/api/admin/problems',
+    DETAIL: (id: string) => `/api/admin/problems/${id}`,
+    CREATE: '/api/admin/problems',
+    UPDATE: (id: string) => `/api/admin/problems/${id}`,
+    DELETE: (id: string) => `/api/admin/problems/${id}`,
+    TESTCASES: (id: string) => `/api/admin/problems/${id}/tests`,
+    TESTCASE_DETAIL: (problemId: string, testCaseId: string) =>
+      `/api/admin/problems/${problemId}/tests/${testCaseId}`,
+    SUBMISSIONS: (id: string) => `/api/admin/problems/${id}/submissions`,
+    SUBMISSION_DETAIL: (problemId: string, submissionId: string) =>
+      `/api/admin/problems/${problemId}/submissions/${submissionId}`,
+
+    // Student
+    STUDENT_LIST: '/api/student/problems',
+    STUDENT_DETAIL: (id: string) => `/api/student/problems/${id}`,
+    SUBMIT: '/api/student/problems/submit',
+    MY_SUBMISSIONS: (id: string) => `/api/student/problems/${id}/submissions`,
   },
 
-  // Announcements
+  // Announcements (Communications - Notifications)
   ANNOUNCEMENTS: {
-    LIST: '/announcements/',
-    DETAIL: (id: number) => `/announcements/${id}/`,
-    CREATE: '/announcements/',
-    UPDATE: (id: number) => `/announcements/${id}/`,
-    DELETE: (id: number) => `/announcements/${id}/`,
-    PIN: (id: number) => `/announcements/${id}/pin/`,
+    // Admin
+    LIST: '/api/admin/communications/notifications',
+    DETAIL: (id: string | number) => `/api/admin/communications/notifications/${id}`,
+    CREATE: '/api/admin/communications/notifications',
+    UPDATE: (id: string | number) => `/api/admin/communications/notifications/${id}`,
+    DELETE: (id: string | number) => `/api/admin/communications/notifications/${id}`,
+
+    // Student
+    STUDENT_LIST: '/api/student/communications/notifications',
+    STUDENT_DETAIL: (id: string | number) => `/api/student/communications/notifications/${id}`,
   },
 
-  // Events
+  // Events (Communications - Events)
   EVENTS: {
-    LIST: '/events/',
-    DETAIL: (id: number) => `/events/${id}/`,
-    CREATE: '/events/',
-    UPDATE: (id: number) => `/events/${id}/`,
-    DELETE: (id: number) => `/events/${id}/`,
-    PARTICIPANTS: (id: number) => `/events/${id}/participants/`,
-    JOIN: (id: number) => `/events/${id}/join/`,
-    LEAVE: (id: number) => `/events/${id}/leave/`,
+    // Admin
+    LIST: '/api/admin/communications/events',
+    DETAIL: (id: string | number) => `/api/admin/communications/events/${id}`,
+    CREATE: '/api/admin/communications/events',
+    UPDATE: (id: string | number) => `/api/admin/communications/events/${id}`,
+    DELETE: (id: string | number) => `/api/admin/communications/events/${id}`,
+    PARTICIPANTS: (id: string | number) => `/api/admin/communications/events/${id}/members`,
+
+    // Student
+    STUDENT_LIST: '/api/student/communications/events',
+    STUDENT_DETAIL: (id: string | number) => `/api/student/communications/events/${id}`,
+    JOIN: (id: string | number) => `/api/student/communications/events/${id}/join`,
+    LEAVE: (id: string | number) => `/api/student/communications/events/${id}/leave`,
   },
 } as const;

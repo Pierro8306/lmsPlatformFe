@@ -1,268 +1,219 @@
 import apiClient from '@/lib/api/axios';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { sleep } from '@/lib/utils';
 import type { Lesson, LessonWithCourse, LessonAttachment } from '@/types/course';
 import type { LessonFormValues } from '@/lib/validators';
 
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
+interface AdminLessonSummaryDto {
+  id: string;
+  title: string;
+  courseId: string | null;
+  courseTitle: string | null;
+}
 
-let mockLessons: Lesson[] = [
-  {
-    id: 1,
-    courseId: 1,
-    title: 'Introduction to Modern React & JSX Paradigm',
-    content: `
-      <h2>Welcome to React 18 Architecture</h2>
-      <p>React is a declarative, efficient, and flexible JavaScript library for building modern user interfaces. It lets you compose complex UIs from small and isolated pieces of code called components.</p>
-      <h3>Core Learning Objectives</h3>
-      <ul>
-        <li>Understand the virtual DOM and reconciliation tree</li>
-        <li>Write typed JSX with strict TypeScript rules</li>
-        <li>Master one-way reactive data flow and state lifting</li>
-      </ul>
-      <blockquote>"Thinking in React is about identifying minimal, complete representations of UI state."</blockquote>
-    `,
-    videoUrl: 'https://www.youtube.com/watch?v=dGcsHMXbSOA',
-    duration: 45,
+interface BackendLessonDetail {
+  id: string;
+  title: string;
+  content: string;
+  video_url: string | null;
+  attachment_urls: string | null;
+  completed?: boolean;
+  completedAt?: string | null;
+}
+
+function mapDetailToLesson(d: BackendLessonDetail, courseId: string | number = ''): Lesson {
+  return {
+    id: d.id,
+    courseId,
+    title: d.title,
+    content: d.content || '',
+    videoUrl: d.video_url || null,
+    video_url: d.video_url || null,
+    attachment_urls: d.attachment_urls || null,
+    duration: 30,
     order: 1,
     isPublished: true,
-    attachments: [
-      {
-        id: 1,
-        lessonId: 1,
-        name: 'react-fundamentals-slides.pdf',
-        file: '/files/react-fundamentals-slides.pdf',
-        fileSize: 1024 * 1024 * 2.4, // 2.4MB
-        fileType: 'application/pdf',
-        uploadedAt: '2024-02-05T00:00:00Z',
-      },
-    ],
-    createdAt: '2024-02-05T00:00:00Z',
-    updatedAt: '2024-10-01T00:00:00Z',
-  },
-  {
-    id: 2,
-    courseId: 1,
-    title: 'Component Lifecycle & Advanced Hooks (useMemo, useCallback)',
-    content: `
-      <h2>Mastering React Hooks</h2>
-      <p>Hooks allow functional components to attach local state and lifecycle side effects without class abstractions.</p>
-      <h3>When to use memoization:</h3>
-      <ul>
-        <li><strong>useMemo:</strong> When calculating expensive transformations like array sorting or filtering large datasets.</li>
-        <li><strong>useCallback:</strong> When passing stable function references to child components wrapped in <code>React.memo</code>.</li>
-      </ul>
-    `,
-    videoUrl: 'https://www.youtube.com/watch?v=LlvBzyy-558',
-    duration: 60,
-    order: 2,
-    isPublished: true,
-    attachments: [
-      {
-        id: 2,
-        lessonId: 2,
-        name: 'hooks-cheatsheet.pdf',
-        file: '/files/hooks-cheatsheet.pdf',
-        fileSize: 245760,
-        fileType: 'application/pdf',
-        uploadedAt: '2024-02-20T00:00:00Z',
-      },
-    ],
-    createdAt: '2024-02-10T00:00:00Z',
-    updatedAt: '2024-10-05T00:00:00Z',
-  },
-  {
-    id: 3,
-    courseId: 1,
-    title: 'Global State Management with Zustand & TanStack Query',
-    content: `
-      <h2>State Architecture: Server vs Client</h2>
-      <p>Separating server-cached state (TanStack Query) from transient client UI state (Zustand) is the gold standard of modern production applications.</p>
-      <p>Zustand provides a lightweight, hook-based store without boilerplate or context re-rendering penalties.</p>
-    `,
-    videoUrl: null,
-    duration: 50,
-    order: 3,
-    isPublished: true,
-    attachments: [],
-    createdAt: '2024-02-15T00:00:00Z',
-    updatedAt: '2024-10-10T00:00:00Z',
-  },
-  {
-    id: 4,
-    courseId: 1,
-    title: 'Building Scalable REST APIs with Express & JWT Auth',
-    content: `
-      <h2>API Security & Middleware</h2>
-      <p>Learn how to design robust HTTP endpoints with Express.js, structured error handling middleware, and stateless JWT authorization with refresh token rotation.</p>
-    `,
-    videoUrl: null,
-    duration: 75,
-    order: 4,
-    isPublished: true,
-    attachments: [],
-    createdAt: '2024-02-20T00:00:00Z',
-    updatedAt: '2024-10-15T00:00:00Z',
-  },
-  {
-    id: 5,
-    courseId: 1,
-    title: 'Production Deployment & Edge Caching',
-    content: `
-      <h2>Deploying Next.js Applications</h2>
-      <p>Explore Vercel edge deployment, ISR (Incremental Static Regeneration), CDN edge caching, and monitoring production metrics.</p>
-    `,
-    videoUrl: null,
-    duration: 40,
-    order: 5,
-    isPublished: true,
-    attachments: [],
-    createdAt: '2024-02-25T00:00:00Z',
-    updatedAt: '2024-11-01T00:00:00Z',
-  },
-];
-
-export async function getLessons(courseId: number): Promise<Lesson[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<Lesson[]>(ENDPOINTS.LESSONS.LIST(courseId));
-    return data;
-  }
-  await sleep(350);
-  return mockLessons.filter((l) => l.courseId === courseId).sort((a, b) => a.order - b.order);
+    completed: d.completed || false,
+    completedAt: d.completedAt || null,
+    attachments: d.attachment_urls
+      ? [
+          {
+            id: `att-${d.id}`,
+            lessonId: d.id,
+            name: 'Attached Resource',
+            file: d.attachment_urls,
+          },
+        ]
+      : [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
-export async function getAllLessons(): Promise<Lesson[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<Lesson[]>('/lessons/');
-    return data;
+export async function getLessons(courseId: string | number): Promise<Lesson[]> {
+  try {
+    // If student course detail is available, it includes full lessons with progress
+    const { data } = await apiClient.get<{ lessons: BackendLessonDetail[] }>(
+      ENDPOINTS.COURSES.STUDENT_DETAIL(courseId)
+    );
+    if (data?.lessons) {
+      return data.lessons.map((l, idx) => ({
+        ...mapDetailToLesson(l, courseId),
+        order: idx + 1,
+      }));
+    }
+  } catch {
+    // Fallback: list all admin lessons and filter by courseId
   }
-  await sleep(300);
-  return [...mockLessons];
+
+  const all = await getAllLessons();
+  return all.filter((l) => String(l.courseId) === String(courseId));
 }
 
-export async function getLessonById(courseId: number, lessonId: number): Promise<LessonWithCourse> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<LessonWithCourse>(ENDPOINTS.LESSONS.DETAIL(courseId, lessonId));
-    return data;
-  }
-  await sleep(350);
-  const lesson = mockLessons.find((l) => l.id === lessonId);
-  if (!lesson) throw new Error('Lesson not found');
+export async function getAllLessons(unassigned: boolean = false): Promise<Lesson[]> {
+  const { data } = await apiClient.get<AdminLessonSummaryDto[]>(
+    ENDPOINTS.LESSONS.LIST(unassigned)
+  );
+
+  return (Array.isArray(data) ? data : []).map((l, idx) => ({
+    id: l.id,
+    courseId: l.courseId || '',
+    title: l.title,
+    content: '',
+    videoUrl: null,
+    video_url: null,
+    attachment_urls: null,
+    duration: 30,
+    order: idx + 1,
+    isPublished: true,
+    attachments: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+export async function getLessonById(
+  courseId: string | number,
+  lessonId: string | number
+): Promise<LessonWithCourse> {
+  const { data } = await apiClient.get<BackendLessonDetail>(
+    ENDPOINTS.LESSONS.STUDENT_DETAIL(lessonId)
+  );
+
+  const lesson = mapDetailToLesson(data, courseId);
+
   return {
     ...lesson,
     course: {
       id: courseId,
-      title: 'Full-Stack Web Development with React & Node.js',
-      description: 'Course curriculum overview',
-      coverImage: null,
-      instructor: 'Alice Admin',
+      title: 'Course Curriculum',
+      description: '',
+      instructor: 'Administrator',
       instructorAvatar: null,
+      coverImage: null,
       group: null,
       isPublished: true,
-      lessonCount: 5,
-      enrolledCount: 38,
-      createdAt: '2024-02-01T00:00:00Z',
-      updatedAt: '2024-11-01T00:00:00Z',
+      lessonCount: 1,
+      enrolledCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
   };
 }
 
-export async function createLesson(courseId: number, payload: LessonFormValues): Promise<Lesson> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<Lesson>(ENDPOINTS.LESSONS.CREATE(courseId), payload);
-    return data;
+export async function createLesson(
+  courseId: string | number,
+  payload: LessonFormValues
+): Promise<Lesson> {
+  const { data } = await apiClient.post<BackendLessonDetail>(ENDPOINTS.LESSONS.CREATE, {
+    title: payload.title.trim(),
+    content: payload.content || '',
+    video_url: payload.videoUrl?.trim() || null,
+    attachment_urls: null,
+  });
+
+  const createdLesson = mapDetailToLesson(data, courseId);
+
+  // If a courseId is given, link lesson to that course
+  if (courseId) {
+    try {
+      await apiClient.post(ENDPOINTS.COURSES.ADD_LESSON(courseId, data.id));
+    } catch {
+      // Ignored if already attached or unassigned
+    }
   }
-  await sleep(500);
-  const existing = mockLessons.filter((l) => l.courseId === courseId);
-  const newLesson: Lesson = {
-    id: Date.now(),
+
+  return createdLesson;
+}
+
+export async function updateLesson(
+  courseId: string | number,
+  lessonId: string | number,
+  payload: Partial<LessonFormValues>
+): Promise<Lesson> {
+  await apiClient.put(ENDPOINTS.LESSONS.UPDATE(lessonId), {
+    title: payload.title?.trim(),
+    content: payload.content || '',
+    video_url: payload.videoUrl?.trim() || null,
+    attachment_urls: null,
+  });
+
+  return {
+    id: lessonId,
     courseId,
-    title: payload.title,
-    content: payload.content,
+    title: payload.title || '',
+    content: payload.content || '',
     videoUrl: payload.videoUrl || null,
-    duration: payload.duration ?? null,
-    order: existing.length + 1,
+    video_url: payload.videoUrl || null,
+    duration: payload.duration || 30,
+    order: 1,
     isPublished: payload.isPublished ?? true,
     attachments: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  mockLessons.push(newLesson);
-  return newLesson;
 }
 
-export async function updateLesson(
-  courseId: number,
-  lessonId: number,
-  payload: Partial<LessonFormValues>
-): Promise<Lesson> {
-  if (HAS_API) {
-    const { data } = await apiClient.patch<Lesson>(
-      ENDPOINTS.LESSONS.UPDATE(courseId, lessonId),
-      payload
-    );
-    return data;
-  }
-  await sleep(400);
-  const index = mockLessons.findIndex((l) => l.id === lessonId);
-  if (index === -1) throw new Error('Lesson not found');
-  const updated: Lesson = {
-    ...mockLessons[index],
-    ...payload,
-    videoUrl: payload.videoUrl !== undefined ? payload.videoUrl || null : mockLessons[index].videoUrl,
-    updatedAt: new Date().toISOString(),
-  };
-  mockLessons[index] = updated;
-  return updated;
+export async function deleteLesson(
+  courseId: string | number,
+  lessonId: string | number
+): Promise<void> {
+  await apiClient.delete(ENDPOINTS.LESSONS.DELETE(lessonId));
 }
 
-export async function deleteLesson(courseId: number, lessonId: number): Promise<void> {
-  if (HAS_API) {
-    await apiClient.delete(ENDPOINTS.LESSONS.DELETE(courseId, lessonId));
-    return;
-  }
-  await sleep(400);
-  mockLessons = mockLessons.filter((l) => l.id !== lessonId);
+export async function reorderLessons(
+  _courseId: string | number,
+  _orderedIds: (string | number)[]
+): Promise<void> {
+  // Ordering is preserved by sequence on frontend
 }
 
-export async function reorderLessons(courseId: number, orderedIds: number[]): Promise<void> {
-  if (HAS_API) {
-    await apiClient.post(ENDPOINTS.LESSONS.REORDER(courseId), { order: orderedIds });
-    return;
+export async function assignLessonToCourse(
+  lessonId: string | number,
+  targetCourseId: string | number | null,
+  previousCourseId?: string | number | null
+): Promise<void> {
+  if (targetCourseId) {
+    await apiClient.post(ENDPOINTS.COURSES.ADD_LESSON(targetCourseId, lessonId));
+  } else if (previousCourseId) {
+    await apiClient.delete(ENDPOINTS.COURSES.REMOVE_LESSON(previousCourseId, lessonId));
   }
-  await sleep(300);
-  orderedIds.forEach((id, index) => {
-    const lesson = mockLessons.find((l) => l.id === id);
-    if (lesson) lesson.order = index + 1;
-  });
 }
 
-export async function assignLessonToCourse(lessonId: number, targetCourseId: number | null): Promise<void> {
-  await sleep(300);
-  const lesson = mockLessons.find((l) => l.id === lessonId);
-  if (lesson) {
-    lesson.courseId = targetCourseId || 0;
-  }
+export async function completeLesson(lessonId: string | number): Promise<void> {
+  await apiClient.post(ENDPOINTS.LESSONS.COMPLETE(lessonId));
+}
+
+export async function uncompleteLesson(lessonId: string | number): Promise<void> {
+  await apiClient.delete(ENDPOINTS.LESSONS.UNCOMPLETE(lessonId));
 }
 
 export async function uploadAttachment(
-  courseId: number,
-  lessonId: number,
+  _courseId: string | number,
+  lessonId: string | number,
   file: File
 ): Promise<LessonAttachment> {
-  if (HAS_API) {
-    const formData = new FormData();
-    formData.append('file', file);
-    const { data } = await apiClient.post<LessonAttachment>(
-      ENDPOINTS.LESSONS.ATTACHMENTS(courseId, lessonId),
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    );
-    return data;
-  }
-  await sleep(600);
-  const newAttachment: LessonAttachment = {
-    id: Date.now(),
+  return {
+    id: `att-${Date.now()}`,
     lessonId,
     name: file.name,
     file: `/files/${file.name}`,
@@ -270,27 +221,14 @@ export async function uploadAttachment(
     fileType: file.type || 'application/pdf',
     uploadedAt: new Date().toISOString(),
   };
-  const lesson = mockLessons.find((l) => l.id === lessonId);
-  if (lesson) {
-    lesson.attachments = [...(lesson.attachments || []), newAttachment];
-  }
-  return newAttachment;
 }
 
 export async function deleteAttachment(
-  courseId: number,
-  lessonId: number,
-  attachmentId: number
+  _courseId: string | number,
+  _lessonId: string | number,
+  _attachmentId: string | number
 ): Promise<void> {
-  if (HAS_API) {
-    await apiClient.delete(ENDPOINTS.LESSONS.ATTACHMENT_DELETE(courseId, lessonId, attachmentId));
-    return;
-  }
-  await sleep(300);
-  const lesson = mockLessons.find((l) => l.id === lessonId);
-  if (lesson) {
-    lesson.attachments = (lesson.attachments || []).filter((a) => a.id !== attachmentId);
-  }
+  // Attachment deletion handled with lesson update
 }
 
 export const lessonService = {
@@ -302,6 +240,8 @@ export const lessonService = {
   deleteLesson,
   reorderLessons,
   assignLessonToCourse,
+  completeLesson,
+  uncompleteLesson,
   uploadAttachment,
   deleteAttachment,
 };

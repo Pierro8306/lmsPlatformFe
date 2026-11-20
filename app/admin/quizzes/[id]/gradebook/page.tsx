@@ -26,7 +26,7 @@ import type { StudentQuizResult } from '@/types/quiz';
 
 export default function AdminQuizGradebookPage() {
   const params = useParams();
-  const quizId = Number(params.id) || 1;
+  const quizId = (params.id as string) || '';
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'all' | 'passed' | 'failed'>('all');
@@ -44,9 +44,11 @@ export default function AdminQuizGradebookPage() {
 
   // Filter results
   const filteredResults = results.filter((r) => {
+    const name = r.studentName || r.username || '';
+    const email = r.studentEmail || '';
     const matchesSearch =
-      r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.studentEmail.toLowerCase().includes(searchQuery.toLowerCase());
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === 'all'
@@ -123,7 +125,7 @@ export default function AdminQuizGradebookPage() {
   const avgScore =
     results.length > 0
       ? (
-          results.reduce((acc, curr) => acc + curr.bestPercentage, 0) /
+          results.reduce((acc, curr) => acc + (curr.bestPercentage || 0), 0) /
           results.length
         ).toFixed(1)
       : '0';
@@ -254,8 +256,9 @@ export default function AdminQuizGradebookPage() {
           </thead>
           <tbody className="divide-y divide-border-subtle text-text-primary">
             {filteredResults.map((result) => {
-              const minutes = Math.floor(result.timeTaken / 60);
-              const seconds = result.timeTaken % 60;
+              const time = Number(result.timeTaken || 0);
+              const minutes = Math.floor(time / 60);
+              const seconds = time % 60;
 
               return (
                 <tr

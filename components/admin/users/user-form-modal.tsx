@@ -45,7 +45,7 @@ async function createUser(data: CreateUserForm): Promise<UserProfile> {
   return await userService.createUser(data);
 }
 
-async function updateUser({ id, data }: { id: number; data: UpdateUserForm }): Promise<UserProfile> {
+async function updateUser({ id, data }: { id: string | number; data: UpdateUserForm }): Promise<UserProfile> {
   return await userService.updateUser(id, data);
 }
 

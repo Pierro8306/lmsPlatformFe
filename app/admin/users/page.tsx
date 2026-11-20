@@ -28,7 +28,7 @@ async function fetchUsers(): Promise<UserProfile[]> {
   return data.results;
 }
 
-async function deleteUser(id: number): Promise<void> {
+async function deleteUser(id: string | number): Promise<void> {
   await userService.deleteUser(id);
 }
 
@@ -57,7 +57,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | number | null>(null);
 
   const { data: users = [], isLoading, isError } = useQuery({
     queryKey: ['admin', 'users'],
@@ -130,7 +130,7 @@ export default function AdminUsersPage() {
       header: 'Joined',
       cell: (info) => (
         <span className="text-sm text-text-secondary">
-          {format(new Date(info.getValue()), 'MMM d, yyyy')}
+          {format(new Date(info.getValue() || Date.now()), 'MMM d, yyyy')}
         </span>
       ),
     }),

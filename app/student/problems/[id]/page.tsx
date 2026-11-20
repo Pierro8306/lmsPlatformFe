@@ -282,7 +282,7 @@ export default function StudentProblemWorkspacePage() {
 
   // Restore old submission version
   const handleRestoreVersion = (sub: Submission) => {
-    setCode(sub.code);
+    setCode(sub.code || sub.sourceCode || '');
     setLanguage(sub.language);
     setViewingOldSubmission(null);
     setLeftTab('description');
@@ -468,7 +468,7 @@ export default function StudentProblemWorkspacePage() {
                     </div>
                   </div>
 
-                  <MarkdownRenderer content={problem.description} />
+                  <MarkdownRenderer content={problem.description || problem.content || ''} />
 
                   {problem.examples && problem.examples.length > 0 && (
                     <div className="space-y-3 pt-2">
@@ -963,7 +963,7 @@ export default function StudentProblemWorkspacePage() {
             <div className="h-64 border border-[#2A3142] rounded-lg overflow-hidden bg-[#0B0D12]">
               <CodeEditor
                 language={viewingOldSubmission.language}
-                value={viewingOldSubmission.code}
+                value={viewingOldSubmission.code || viewingOldSubmission.sourceCode || ''}
                 readOnly={true}
               />
             </div>

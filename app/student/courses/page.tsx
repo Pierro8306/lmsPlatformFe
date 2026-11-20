@@ -35,7 +35,7 @@ function CourseCardSkeleton() {
 }
 
 function CourseCard({ course }: { course: StudentCourse }) {
-  const colorClass = COURSE_COLORS[(course.id?.charCodeAt(0) ?? 0) % COURSE_COLORS.length];
+  const colorClass = COURSE_COLORS[(String(course.id).charCodeAt(0) ?? 0) % COURSE_COLORS.length];
   const isCompleted = course.progress >= 100;
 
   return (

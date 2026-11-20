@@ -93,7 +93,7 @@ export default function AdminCoursesPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => courseService.deleteCourse(id),
+    mutationFn: (id: string | number) => courseService.deleteCourse(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] });
       toast.success('Course deleted successfully');
@@ -118,7 +118,7 @@ export default function AdminCoursesPage() {
     setFormTitle(course.title);
     setFormDescription(course.description);
     setFormGroup(course.group || '');
-    setFormPublished(course.isPublished);
+    setFormPublished(!!course.isPublished);
     setIsModalOpen(true);
   };
 
@@ -141,8 +141,8 @@ export default function AdminCoursesPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalLessons = courses.reduce((sum, c) => sum + c.lessonCount, 0);
-  const totalStudents = courses.reduce((sum, c) => sum + c.enrolledCount, 0);
+  const totalLessons = courses.reduce((sum, c) => sum + (c.lessonCount || 0), 0);
+  const totalStudents = courses.reduce((sum, c) => sum + (c.enrolledCount || 0), 0);
 
   return (
     <div className="space-y-6">

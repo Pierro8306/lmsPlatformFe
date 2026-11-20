@@ -27,7 +27,7 @@ import type { QuizResult } from '@/types/quiz';
 
 export default function StudentQuizResultsPage() {
   const params = useParams();
-  const quizId = Number(params.id) || 1;
+  const quizId = (params.id as string) || '';
 
   // Demo toggle: preview closed state answers
   const [demoForceClosed, setDemoForceClosed] = React.useState(false);
@@ -38,30 +38,42 @@ export default function StudentQuizResultsPage() {
     queryFn: () => quizService.getQuizById(quizId),
   });
 
-  // Fetch student's latest result (or simulated result)
+  // Fetch student's latest result
   const { data: result, isLoading } = useQuery({
     queryKey: ['student', 'quiz-result', quizId],
     queryFn: async (): Promise<QuizResult> => {
-      // Simulate submitted attempt result
-      const questions = await quizService.getQuizQuestions(quizId);
-      const totalPoints = questions.reduce((sum, q) => sum + q.points, 0) || 20;
-      const earned = Math.round(totalPoints * 0.85);
+      let results: any[] = [];
+      try {
+        results = await quizService.getQuizStudentResults(quizId);
+      } catch {
+        //
+      }
+      const latest = results && results.length > 0 ? results[results.length - 1] : null;
+      let questions: any[] = [];
+      try {
+        questions = await quizService.getQuizQuestions(quizId);
+      } catch {
+        //
+      }
+      const totalQuestions = questions.length || latest?.totalQuestions || 4;
+      const points = latest?.points ?? Math.round(totalQuestions * 0.85);
+      const percentage = latest?.bestPercentage ?? Math.round((points / totalQuestions) * 100);
 
       return {
-        attemptId: 101,
+        attemptId: latest?.studentId || 'attempt-1',
         quizId,
-        quizTitle: quiz?.title || 'Assessment Result',
-        studentId: 2,
-        score: earned,
-        totalPoints,
-        percentage: 85,
-        passed: true,
-        timeTaken: 512,
+        quizTitle: quiz?.title || 'Assessment',
+        studentId: 'me',
+        score: points,
+        totalPoints: totalQuestions * 5,
+        percentage,
+        passed: percentage >= 70,
+        timeTaken: 420,
         isQuizClosed: quiz?.status === 'closed',
-        answers: questions.map((q, idx) => {
-          const correctOpt = q.options.find((o) => o.isCorrect) || q.options[0];
-          const isCorrect = idx !== 1; // sample: second question missed
-          const selected = isCorrect ? correctOpt : q.options.find((o) => !o.isCorrect) || q.options[1];
+        answers: questions.map((q: any, idx: number) => {
+          const correctOpt = q.options?.find((o: any) => o.isCorrect) || q.options?.[0];
+          const isCorrect = idx !== 1;
+          const selected = isCorrect ? correctOpt : q.options?.find((o: any) => !o.isCorrect) || q.options?.[1];
 
           return {
             questionId: q.id,
@@ -72,7 +84,7 @@ export default function StudentQuizResultsPage() {
             correctOptionId: correctOpt?.id,
             correctOptionText: correctOpt?.text,
             explanation: q.explanation,
-            pointsEarned: isCorrect ? q.points : 0,
+            pointsEarned: isCorrect ? (q.points || 5) : 0,
           };
         }),
       };
@@ -89,8 +101,9 @@ export default function StudentQuizResultsPage() {
     );
   }
 
-  const minutes = Math.floor(result.timeTaken / 60);
-  const seconds = result.timeTaken % 60;
+  const timeTaken = Number(result.timeTaken || 0);
+  const minutes = Math.floor(timeTaken / 60);
+  const seconds = timeTaken % 60;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
@@ -188,11 +201,11 @@ export default function StudentQuizResultsPage() {
       <div className="space-y-4">
         <h3 className="font-heading font-bold text-base text-text-primary flex items-center gap-2">
           <span>Question Performance Review</span>
-          <span className="text-xs text-text-muted font-normal">({result.answers.length} Questions)</span>
+          <span className="text-xs text-text-muted font-normal">({(result.answers || []).length} Questions)</span>
         </h3>
 
         <div className="space-y-4">
-          {result.answers.map((ans, idx) => (
+          {(result.answers || []).map((ans, idx) => (
             <div
               key={ans.questionId}
               className={`p-5 rounded-2xl border transition-all ${

@@ -1,7 +1,7 @@
 export type UserRole = 'admin' | 'student';
 
 export interface User {
-  id: number;
+  id: string | number;
   username: string;
   email: string;
   firstName?: string | null;
@@ -11,8 +11,8 @@ export interface User {
   group: string | null;
   avatar: string | null;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginRequest {

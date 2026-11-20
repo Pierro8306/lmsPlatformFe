@@ -1,5 +1,3 @@
-import apiClient from '@/lib/api/axios';
-import { sleep } from '@/lib/utils';
 import type { Course } from '@/types/course';
 import type { Project } from '@/types/project';
 import type { Quiz } from '@/types/quiz';
@@ -9,8 +7,6 @@ import { getAllProjects } from './project.service';
 import { getAllQuizzes } from './quiz.service';
 import { getAnnouncements } from './announcement.service';
 import { getEvents } from './event.service';
-
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
 
 export interface StudentDashboardDeadline {
   id: string | number;
@@ -35,63 +31,77 @@ export interface StudentDashboardData {
   unreadAnnouncements: number;
   nextLesson?: StudentDashboardNextLesson;
   upcomingDeadlines: StudentDashboardDeadline[];
-  enrolledCourses: (Course & { progress: number; lastLessonId?: number; lastLessonTitle?: string })[];
+  enrolledCourses: (Course & { progress: number; lastLessonId?: string | number; lastLessonTitle?: string })[];
   upcomingQuizzes: Quiz[];
   pendingProjects: Project[];
   recentEvents: Event[];
 }
 
 export async function getDashboard(): Promise<StudentDashboardData> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<StudentDashboardData>('/student/dashboard/');
-    return data;
-  }
-  await sleep(400);
+  const [coursesRes, quizzesRes, projectsRes, eventsRes, announcementsRes] = await Promise.allSettled([
+    getCourses(),
+    getAllQuizzes(),
+    getAllProjects(),
+    getEvents(),
+    getAnnouncements(),
+  ]);
 
-  const coursesRes = await getCourses();
-  const quizzesRes = await getAllQuizzes();
-  const projectsRes = await getAllProjects();
-  const eventsRes = await getEvents();
+  const courses = coursesRes.status === 'fulfilled' ? coursesRes.value.results : [];
+  const quizzes = quizzesRes.status === 'fulfilled' ? quizzesRes.value : [];
+  const projects = projectsRes.status === 'fulfilled' ? projectsRes.value : [];
+  const events = eventsRes.status === 'fulfilled' ? eventsRes.value.results : [];
+  const announcements = announcementsRes.status === 'fulfilled' ? announcementsRes.value.results : [];
+
+  const coursesInProgress = courses.filter((c) => (c.progress || 0) > 0 && (c.progress || 0) < 100).length;
+  const coursesCompleted = courses.filter((c) => (c.progress || 0) >= 100).length;
+
+  const upcomingDeadlines: StudentDashboardDeadline[] = [
+    ...projects
+      .filter((p) => p.dueDate && new Date(p.dueDate) > new Date())
+      .slice(0, 3)
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        type: 'Project Assignment',
+        dueDate: p.dueDate!,
+      })),
+    ...quizzes
+      .filter((q) => q.endTime && new Date(q.endTime) > new Date())
+      .slice(0, 3)
+      .map((q) => ({
+        id: q.id,
+        title: q.title,
+        type: 'Timed Quiz',
+        dueDate: q.endTime!,
+      })),
+  ];
+
+  const firstCourse = courses[0];
+  const nextLesson: StudentDashboardNextLesson | undefined = firstCourse
+    ? {
+        courseId: String(firstCourse.id),
+        lessonId: '1',
+        courseTitle: firstCourse.title,
+        lessonTitle: firstCourse.description?.slice(0, 40) || 'Course Introduction',
+        progress: firstCourse.progress || 0,
+      }
+    : undefined;
 
   return {
-    coursesInProgress: 2,
-    coursesCompleted: 1,
-    totalCourses: 3,
-    upcomingQuizzesCount: 2,
-    unreadAnnouncements: 2,
-    nextLesson: {
-      courseId: '1',
-      lessonId: '2',
-      courseTitle: 'Full-Stack Web Development with React 18',
-      lessonTitle: 'Component Lifecycle & Advanced Hooks (useMemo, useCallback)',
-      progress: 60,
-    },
-    upcomingDeadlines: [
-      {
-        id: 1,
-        title: 'Project 1: SaaS Portfolio Repository Submission',
-        type: 'Project Assignment',
-        dueDate: new Date(Date.now() + 86400000 * 3).toISOString(),
-      },
-      {
-        id: 2,
-        title: 'React Architecture Online Assessment',
-        type: 'Timed Quiz',
-        dueDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-      },
-    ],
-    enrolledCourses: coursesRes.results.slice(0, 3).map((c, i) => ({
+    coursesInProgress,
+    coursesCompleted,
+    totalCourses: courses.length,
+    upcomingQuizzesCount: quizzes.filter((q) => q.status !== 'closed').length,
+    unreadAnnouncements: announcements.length,
+    nextLesson,
+    upcomingDeadlines,
+    enrolledCourses: courses.map((c) => ({
       ...c,
-      progress: i === 0 ? 60 : i === 1 ? 35 : 100,
-      lastLessonId: i === 0 ? 2 : 1,
-      lastLessonTitle:
-        i === 0
-          ? 'Component Lifecycle & Advanced Hooks'
-          : 'DataFrames & Series Manipulation',
+      progress: c.progress || 0,
     })),
-    upcomingQuizzes: quizzesRes.filter((q) => q.status !== 'closed'),
-    pendingProjects: projectsRes.slice(0, 2),
-    recentEvents: eventsRes.results.slice(0, 3),
+    upcomingQuizzes: quizzes.filter((q) => q.status !== 'closed'),
+    pendingProjects: projects,
+    recentEvents: events.slice(0, 4),
   };
 }
 
@@ -99,19 +109,14 @@ export async function getMyCourses(params?: {
   filter?: 'all' | 'in_progress' | 'completed';
   search?: string;
 }): Promise<any[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get('/student/courses/', { params });
-    return data;
-  }
-  await sleep(400);
   const coursesRes = await getCourses();
-  let list = coursesRes.results.map((c, i) => ({
-    id: c.id.toString(),
+  let list = coursesRes.results.map((c) => ({
+    id: String(c.id),
     title: c.title,
     description: c.description,
-    instructor: c.instructor,
-    lessonCount: c.lessonCount,
-    progress: i === 0 ? 60 : i === 1 ? 35 : 100,
+    instructor: c.instructor || 'Administrator',
+    lessonCount: c.lessonCount || 0,
+    progress: c.progress || 0,
   }));
 
   if (params?.search) {
@@ -129,17 +134,9 @@ export async function getMyCourses(params?: {
 }
 
 export async function getStudentAnnouncements(params?: { limit?: number }): Promise<Announcement[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<Announcement[]>('/student/announcements/', { params });
-    return data;
-  }
-  await sleep(300);
   const res = await getAnnouncements();
   const limit = params?.limit || res.results.length;
-  return res.results.slice(0, limit).map((a, idx) => ({
-    ...a,
-    isRead: idx > 0, // first is unread
-  }));
+  return res.results.slice(0, limit);
 }
 
 export const studentService = {

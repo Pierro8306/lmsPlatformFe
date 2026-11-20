@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Sparkles, Loader2, ShieldCheck, GraduationCap } from 'lucide-react';
+import { Eye, EyeOff, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -67,16 +67,6 @@ function LoginFormContent() {
     }
   };
 
-  const fillDemo = (role: 'admin' | 'student') => {
-    if (role === 'admin') {
-      setValue('username', 'admin');
-      setValue('password', 'Admin@123');
-    } else {
-      setValue('username', 'student');
-      setValue('password', 'Student@123');
-    }
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -102,32 +92,6 @@ function LoginFormContent() {
           <p className="text-sm text-text-secondary mt-1">
             Access courses, interactive exams, and collaborative projects
           </p>
-        </div>
-
-        {/* Quick Demo Credentials Bar */}
-        <div className="mb-6 p-3 rounded-2xl border border-border-subtle bg-background-elevated/40 space-y-2">
-          <div className="flex items-center justify-between text-xs text-text-muted">
-            <span className="font-medium">Quick Demo Accounts:</span>
-            <span className="text-[10px] text-accent-cyan">One-click auto-fill</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => fillDemo('admin')}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-medium bg-accent-indigo/10 text-accent-indigo hover:bg-accent-indigo/20 border border-accent-indigo/30 transition-colors"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin Demo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemo('student')}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-medium bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 border border-accent-cyan/30 transition-colors"
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Student Demo</span>
-            </button>
-          </div>
         </div>
 
         {/* Login Form */}

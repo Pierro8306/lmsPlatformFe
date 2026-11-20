@@ -1,4 +1,4 @@
-# Thư mục thư viện & build (Tuyệt đối không đẩy lên Git)
+# Thư mục thư viện & build 
 node_modules/
 .next/
 out/

@@ -1,163 +1,34 @@
 import apiClient from '@/lib/api/axios';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { sleep } from '@/lib/utils';
 import type { UserProfile, UserGroup, CreateUserRequest, UpdateUserRequest } from '@/types/user';
 import type { PaginatedResponse } from '@/types/api';
+import type { UserRole } from '@/types/auth';
 
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
+interface BackendUserDto {
+  id: string;
+  role: string;
+  userGroup: string | null;
+  username: string;
+  email: string;
+}
 
-let mockUsers: UserProfile[] = [
-  {
-    id: 1,
-    username: 'admin',
-    email: 'admin@eduflow.dev',
-    firstName: 'Alice',
-    lastName: 'Administrator',
-    role: 'admin',
-    group: null,
-    avatar: null,
-    bio: 'Platform Lead & Systems Administrator',
-    isActive: true,
-    lastLogin: '2024-11-17T08:00:00Z',
-    enrolledCourses: 0,
-    completedCourses: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-11-17T08:00:00Z',
-  },
-  {
-    id: 2,
-    username: 'student',
-    email: 'student@eduflow.dev',
-    firstName: 'Alex',
-    lastName: 'Rivers',
-    role: 'student',
-    group: 'Group Alpha',
-    avatar: null,
-    bio: 'Full-Stack Student Track',
-    isActive: true,
-    lastLogin: '2024-11-17T12:30:00Z',
-    enrolledCourses: 3,
-    completedCourses: 1,
-    createdAt: '2024-02-10T00:00:00Z',
-    updatedAt: '2024-11-17T12:30:00Z',
-  },
-  {
-    id: 3,
-    username: 'jvance',
-    email: 'jvance@eduflow.dev',
-    firstName: 'Jordan',
-    lastName: 'Vance',
-    role: 'student',
-    group: 'Group Alpha',
-    avatar: null,
-    bio: 'Backend & Cloud architecture learner',
-    isActive: true,
-    lastLogin: '2024-11-16T14:30:00Z',
-    enrolledCourses: 4,
-    completedCourses: 2,
-    createdAt: '2024-02-11T00:00:00Z',
-    updatedAt: '2024-11-16T14:30:00Z',
-  },
-  {
-    id: 4,
-    username: 'mlee',
-    email: 'mlee@eduflow.dev',
-    firstName: 'Morgan',
-    lastName: 'Lee',
-    role: 'student',
-    group: 'Group Beta',
-    avatar: null,
-    bio: 'Design systems enthusiast',
-    isActive: true,
-    lastLogin: '2024-11-15T16:00:00Z',
-    enrolledCourses: 2,
-    completedCourses: 0,
-    createdAt: '2024-03-01T00:00:00Z',
-    updatedAt: '2024-11-15T16:00:00Z',
-  },
-  {
-    id: 5,
-    username: 'sjenkins',
-    email: 'sjenkins@eduflow.dev',
-    firstName: 'Sarah',
-    lastName: 'Jenkins',
-    role: 'student',
-    group: 'Group Beta',
-    avatar: null,
-    bio: 'Data Science candidate',
-    isActive: false,
-    lastLogin: '2024-10-01T10:00:00Z',
-    enrolledCourses: 1,
-    completedCourses: 0,
-    createdAt: '2024-03-15T00:00:00Z',
-    updatedAt: '2024-10-01T10:00:00Z',
-  },
-  {
-    id: 6,
-    username: 'mchen',
-    email: 'mchen@eduflow.dev',
-    firstName: 'Marcus',
-    lastName: 'Chen',
-    role: 'student',
-    group: 'Group Gamma',
-    avatar: null,
-    bio: 'Algorithms and Distributed Systems',
-    isActive: true,
-    lastLogin: '2024-11-17T07:30:00Z',
-    enrolledCourses: 5,
-    completedCourses: 3,
-    createdAt: '2024-04-01T00:00:00Z',
-    updatedAt: '2024-11-17T07:30:00Z',
-  },
-];
+interface BackendGroupDto {
+  id: string;
+  name: string;
+}
 
-let mockGroups: UserGroup[] = [
-  { id: 1, name: 'Group Alpha', description: 'Advanced Full-Stack Engineering Cohort', memberCount: 16, createdAt: '2024-01-15T00:00:00Z' },
-  { id: 2, name: 'Group Beta', description: 'UI/UX & Frontend Specialization Cohort', memberCount: 14, createdAt: '2024-01-15T00:00:00Z' },
-  { id: 3, name: 'Group Gamma', description: 'Cloud Infrastructure & DevOps Cohort', memberCount: 12, createdAt: '2024-01-15T00:00:00Z' },
-];
+function mapBackendUserToProfile(u: BackendUserDto): UserProfile {
+  const roleLower = (u.role || '').toLowerCase();
+  const role: UserRole = roleLower.includes('admin') ? 'admin' : 'student';
 
-export async function getUsers(): Promise<PaginatedResponse<UserProfile>> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<PaginatedResponse<UserProfile>>(ENDPOINTS.USERS.LIST);
-    return data;
-  }
-  await sleep(400);
   return {
-    results: [...mockUsers],
-    count: mockUsers.length,
-    next: null,
-    previous: null,
-    totalPages: 1,
-    currentPage: 1,
-  };
-}
-
-export async function getUserById(id: number): Promise<UserProfile> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<UserProfile>(ENDPOINTS.USERS.DETAIL(id));
-    return data;
-  }
-  await sleep(350);
-  const user = mockUsers.find((u) => u.id === id);
-  if (!user) throw new Error('User not found');
-  return user;
-}
-
-export async function createUser(payload: CreateUserRequest): Promise<UserProfile> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<UserProfile>(ENDPOINTS.USERS.CREATE, payload);
-    return data;
-  }
-  await sleep(500);
-  const newUser: UserProfile = {
-    id: Date.now(),
-    username: payload.username,
-    email: payload.email,
-    firstName: payload.firstName,
-    lastName: payload.lastName,
-    role: payload.role,
-    group: payload.group ?? null,
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    firstName: u.username,
+    lastName: '',
+    role,
+    group: u.userGroup || null,
     avatar: null,
     bio: null,
     isActive: true,
@@ -167,43 +38,129 @@ export async function createUser(payload: CreateUserRequest): Promise<UserProfil
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  mockUsers.unshift(newUser);
-  return newUser;
 }
 
-export async function updateUser(id: number, payload: UpdateUserRequest): Promise<UserProfile> {
-  if (HAS_API) {
-    const { data } = await apiClient.patch<UserProfile>(ENDPOINTS.USERS.UPDATE(id), payload);
-    return data;
+export async function getUsers(roleFilter?: string): Promise<PaginatedResponse<UserProfile>> {
+  const url = roleFilter
+    ? ENDPOINTS.USERS.BY_ROLE(roleFilter.toUpperCase())
+    : ENDPOINTS.USERS.LIST;
+
+  const { data } = await apiClient.get<BackendUserDto[]>(url);
+  const profiles = (Array.isArray(data) ? data : []).map(mapBackendUserToProfile);
+
+  return {
+    results: profiles,
+    count: profiles.length,
+    next: null,
+    previous: null,
+    totalPages: 1,
+    currentPage: 1,
+  };
+}
+
+export async function getUserById(id: string | number): Promise<UserProfile> {
+  const all = await getUsers();
+  const found = all.results.find((u) => String(u.id) === String(id));
+  if (!found) {
+    throw new Error('User not found');
   }
-  await sleep(400);
-  const idx = mockUsers.findIndex((u) => u.id === id);
-  if (idx === -1) throw new Error('User not found');
-  const updated: UserProfile = {
-    ...mockUsers[idx],
-    ...payload,
+  return found;
+}
+
+export async function createUser(payload: CreateUserRequest): Promise<UserProfile> {
+  const roleUpper = (payload.role || 'student').toUpperCase();
+  const groupName = payload.group || payload.userGroup || null;
+
+  await apiClient.post(ENDPOINTS.USERS.CREATE, {
+    username: payload.username.trim(),
+    email: payload.email.trim(),
+    password: payload.password,
+    role: roleUpper,
+    userGroup: groupName || undefined,
+  });
+
+  return {
+    id: payload.username,
+    username: payload.username,
+    email: payload.email,
+    firstName: payload.firstName || payload.username,
+    lastName: payload.lastName || '',
+    role: (roleUpper.includes('ADMIN') ? 'admin' : 'student') as UserRole,
+    group: groupName,
+    avatar: null,
+    bio: null,
+    isActive: true,
+    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  mockUsers[idx] = updated;
-  return updated;
 }
 
-export async function deleteUser(id: number): Promise<void> {
-  if (HAS_API) {
-    await apiClient.delete(ENDPOINTS.USERS.DELETE(id));
-    return;
-  }
-  await sleep(400);
-  mockUsers = mockUsers.filter((u) => u.id !== id);
+export async function updateUser(
+  id: string | number,
+  payload: UpdateUserRequest
+): Promise<UserProfile> {
+  const existing = await getUserById(id);
+  const roleUpper = (payload.role ? String(payload.role) : existing.role).toUpperCase();
+  const groupName = payload.group !== undefined ? payload.group : payload.userGroup !== undefined ? payload.userGroup : existing.group;
+
+  await apiClient.put(ENDPOINTS.USERS.UPDATE, {
+    id: String(id),
+    username: (payload.username || existing.username).trim(),
+    email: (payload.email || existing.email).trim(),
+    role: roleUpper,
+    userGroup: groupName || undefined,
+  });
+
+  return {
+    ...existing,
+    ...payload,
+    id,
+    role: (roleUpper.includes('ADMIN') ? 'admin' : 'student') as UserRole,
+    group: groupName ?? null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export async function deleteUser(id: string | number): Promise<void> {
+  await apiClient.delete(ENDPOINTS.USERS.DELETE(id));
 }
 
 export async function getGroups(): Promise<UserGroup[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<UserGroup[]>(ENDPOINTS.USERS.GROUPS);
-    return data;
-  }
-  await sleep(300);
-  return mockGroups;
+  const { data } = await apiClient.get<BackendGroupDto[]>(ENDPOINTS.USERS.GROUPS);
+  return (Array.isArray(data) ? data : []).map((g) => ({
+    id: g.id,
+    name: g.name,
+    description: null,
+    memberCount: 0,
+    createdAt: new Date().toISOString(),
+  }));
+}
+
+export async function createGroup(name: string): Promise<UserGroup> {
+  const { data } = await apiClient.post<BackendGroupDto>(ENDPOINTS.USERS.GROUPS, { name });
+  return {
+    id: data.id,
+    name: data.name,
+    memberCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export async function renameGroup(groupId: string | number, name: string): Promise<UserGroup> {
+  const { data } = await apiClient.put<BackendGroupDto>(ENDPOINTS.USERS.GROUP_DETAIL(groupId), { name });
+  return {
+    id: data.id,
+    name: data.name,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export async function deleteGroup(groupId: string | number): Promise<void> {
+  await apiClient.delete(ENDPOINTS.USERS.GROUP_DETAIL(groupId));
+}
+
+export async function setGroupMembers(groupId: string | number, userIds: string[]): Promise<void> {
+  await apiClient.put(ENDPOINTS.USERS.GROUP_MEMBERS(groupId), { userIds });
 }
 
 export const userService = {
@@ -213,4 +170,8 @@ export const userService = {
   updateUser,
   deleteUser,
   getGroups,
+  createGroup,
+  renameGroup,
+  deleteGroup,
+  setGroupMembers,
 };

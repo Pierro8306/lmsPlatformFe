@@ -88,7 +88,7 @@ export default function AdminSubmissionsPage() {
     try {
       const fullSub = await getSubmission(problemId, sub.id);
       setSelectedSubmission(fullSub);
-      setManualScore(fullSub.score);
+      setManualScore(fullSub.score ?? 10);
       setGeneralFeedback(fullSub.feedback || '');
       setActiveLineForComment(null);
       setIsDrawerOpen(true);
@@ -321,7 +321,7 @@ export default function AdminSubmissionsPage() {
                   Runtime: <strong className="text-white">{selectedSubmission.executionTimeMs} ms</strong>
                 </span>
                 <span className="text-[#9AA3B5]">
-                  Memory: <strong className="text-white">{(selectedSubmission.memoryKb / 1024).toFixed(1)} MB</strong>
+                  Memory: <strong className="text-white">{(Number(selectedSubmission.memoryKb || 0) / 1024).toFixed(1)} MB</strong>
                 </span>
               </div>
 
@@ -336,7 +336,7 @@ export default function AdminSubmissionsPage() {
               <div className="lg:col-span-2 border border-[#2A3142] rounded-lg overflow-hidden bg-[#0B0D12]">
                 <CodeEditor
                   language={selectedSubmission.language}
-                  value={selectedSubmission.code}
+                  value={selectedSubmission.code || selectedSubmission.sourceCode || ''}
                   readOnly={true}
                   highlightedLines={highlightedLines}
                   onLineClick={handleLineClick}

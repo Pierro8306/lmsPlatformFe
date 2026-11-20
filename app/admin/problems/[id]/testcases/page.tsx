@@ -90,7 +90,7 @@ export default function AdminTestCasesPage() {
     setFormInput(tc.input);
     setFormOutput(tc.expectedOutput);
     setFormIsVisible(tc.isVisible);
-    setFormPoints(tc.points);
+    setFormPoints(tc.points ?? 20);
     setIsEditing(true);
   };
 

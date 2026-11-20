@@ -27,8 +27,8 @@ import { Badge } from '@/components/ui/badge';
 export default function StudentLessonViewerPage() {
   const params = useParams();
   const router = useRouter();
-  const courseId = Number(params.id) || 1;
-  const lessonId = Number(params.lessonId) || 1;
+  const courseId = (params.id as string) || '';
+  const lessonId = (params.lessonId as string) || '';
 
   const [isCompleted, setIsCompleted] = React.useState(false);
 
@@ -43,10 +43,16 @@ export default function StudentLessonViewerPage() {
     queryFn: () => lessonService.getLessons(courseId),
   });
 
-  const currentLesson = lessons.find((l) => l.id === lessonId) || lessons[0];
-  const currentIndex = lessons.findIndex((l) => l.id === lessonId);
+  const currentLesson = lessons.find((l) => String(l.id) === String(lessonId)) || lessons[0];
+  const currentIndex = lessons.findIndex((l) => String(l.id) === String(lessonId));
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
   const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
+
+  React.useEffect(() => {
+    if (currentLesson?.completed) {
+      setIsCompleted(true);
+    }
+  }, [currentLesson]);
 
   // Video embed helper
   const getEmbedUrl = (url: string | null) => {
@@ -66,13 +72,20 @@ export default function StudentLessonViewerPage() {
     }
   };
 
-  const handleMarkComplete = () => {
-    setIsCompleted(true);
-    toast.success('Lesson marked as complete! Progress saved.');
-    if (nextLesson) {
-      setTimeout(() => {
-        router.push(`/student/courses/${courseId}/lessons/${nextLesson.id}`);
-      }, 1200);
+  const handleMarkComplete = async () => {
+    try {
+      if (currentLesson) {
+        await lessonService.completeLesson(currentLesson.id);
+      }
+      setIsCompleted(true);
+      toast.success('Lesson marked as complete! Progress saved.');
+      if (nextLesson) {
+        setTimeout(() => {
+          router.push(`/student/courses/${courseId}/lessons/${nextLesson.id}`);
+        }, 1200);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to complete lesson');
     }
   };
 
@@ -84,7 +97,7 @@ export default function StudentLessonViewerPage() {
     );
   }
 
-  const embedUrl = getEmbedUrl(currentLesson.videoUrl);
+  const embedUrl = getEmbedUrl(currentLesson.videoUrl || currentLesson.video_url || null);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -170,7 +183,7 @@ export default function StudentLessonViewerPage() {
         {/* Lesson HTML Content */}
         <div
           className="prose prose-invert max-w-none text-text-primary text-sm sm:text-base leading-relaxed space-y-4"
-          dangerouslySetInnerHTML={{ __html: currentLesson.content }}
+          dangerouslySetInnerHTML={{ __html: currentLesson.content || '<p>No content provided</p>' }}
         />
 
         {/* Downloadable Attachments Section */}
@@ -196,7 +209,7 @@ export default function StudentLessonViewerPage() {
                         {att.name}
                       </p>
                       <p className="text-[10px] text-text-muted">
-                        {(att.fileSize / 1024).toFixed(0)} KB • PDF
+                        {((att.fileSize || 1024) / 1024).toFixed(0)} KB • PDF
                       </p>
                     </div>
                   </div>

@@ -105,7 +105,7 @@ export default function AdminProjectsPage() {
 
   // Delete project mutation
   const deleteProjectMutation = useMutation({
-    mutationFn: (id: number) => projectService.deleteProject(id),
+    mutationFn: (id: string | number) => projectService.deleteProject(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
       toast.success('Project deleted');
@@ -157,13 +157,13 @@ export default function AdminProjectsPage() {
     setEditingProject(project);
     setFormTitle(project.title);
     setFormDescription(project.description);
-    setFormRequirements(project.requirements);
+    setFormRequirements(project.requirements || '');
     setFormDueDate(
       project.dueDate
         ? new Date(project.dueDate).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16)
     );
-    setFormAllowLate(project.allowLateSubmission);
+    setFormAllowLate(!!project.allowLateSubmission);
     setIsCreateModalOpen(true);
   };
 

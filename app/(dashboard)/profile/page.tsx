@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { Loader2, User, Mail, Shield, Users, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
+import { authService } from '@/services/auth.service'
 
 const profileSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -44,11 +45,14 @@ export default function ProfilePage() {
   const onSubmit = async (data: ProfileFormData) => {
     setIsSaving(true)
     try {
-      // In a real app, call API here
-      updateUser({ username: data.username, email: data.email })
+      const updated = await authService.updateProfile({
+        username: data.username,
+        email: data.email,
+      })
+      updateUser({ username: updated.username, email: updated.email })
       toast.success('Profile updated successfully')
-    } catch {
-      toast.error('Failed to update profile')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update profile')
     } finally {
       setIsSaving(false)
     }

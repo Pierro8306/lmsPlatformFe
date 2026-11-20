@@ -47,7 +47,7 @@ export function ProblemForm({ initialData, onSubmit, isSubmitting = false }: Pro
   const router = useRouter();
 
   const [title, setTitle] = useState(initialData?.title || '');
-  const [difficulty, setDifficulty] = useState<Difficulty>(initialData?.difficulty || 'easy');
+  const [difficulty, setDifficulty] = useState<Difficulty>((initialData?.difficulty as Difficulty) || 'easy');
   const [tagsInput, setTagsInput] = useState(initialData?.tags?.join(', ') || 'Array, Algorithms');
   const [timeLimitMs, setTimeLimitMs] = useState(initialData?.timeLimitMs || 1000);
   const [memoryLimitMb, setMemoryLimitMb] = useState(initialData?.memoryLimitMb || 256);

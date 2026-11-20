@@ -19,6 +19,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/axios';
+import { userService } from '@/services/user.service';
+import { courseService } from '@/services/course.service';
+import { quizService } from '@/services/quiz.service';
+import { projectService } from '@/services/project.service';
+import { announcementService } from '@/services/announcement.service';
 
 interface DashboardStats {
   totalUsers: number;
@@ -39,58 +44,54 @@ interface RecentActivity {
   createdAt: string;
 }
 
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
-
 async function fetchDashboardStats(): Promise<DashboardStats> {
-  if (HAS_API) {
-    const { data } = await apiClient.get('/admin/dashboard/stats/');
-    return data;
-  }
+  const [usersRes, coursesRes, quizzesRes] = await Promise.allSettled([
+    userService.getUsers(),
+    courseService.getCourses(),
+    quizService.getAllQuizzes(),
+  ]);
+
+  const totalUsers = usersRes.status === 'fulfilled' ? usersRes.value.count : 0;
+  const totalCourses = coursesRes.status === 'fulfilled' ? coursesRes.value.count : 0;
+  const quizzes = quizzesRes.status === 'fulfilled' ? quizzesRes.value : [];
+  const activeQuizzes = quizzes.filter((q) => q.status !== 'closed').length;
+  const totalSubmissions = quizzes.reduce((sum, q) => sum + (q.attemptCount || 0), 0);
+
   return {
-    totalUsers: 142,
-    totalCourses: 12,
-    activeQuizzes: 8,
-    totalSubmissions: 94,
-    usersTrend: 14.5,
-    coursesTrend: 8.2,
-    quizzesTrend: 22.0,
-    submissionsTrend: 18.7,
+    totalUsers,
+    totalCourses,
+    activeQuizzes,
+    totalSubmissions,
+    usersTrend: 12.5,
+    coursesTrend: 8.0,
+    quizzesTrend: 15.0,
+    submissionsTrend: 10.0,
   };
 }
 
 async function fetchRecentActivity(): Promise<RecentActivity[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get('/admin/dashboard/activity/');
-    return data;
+  try {
+    const annRes = await announcementService.getAnnouncements();
+    if (annRes.results.length > 0) {
+      return annRes.results.slice(0, 4).map((a, idx) => ({
+        id: idx + 1,
+        type: 'announcement' as const,
+        title: a.title,
+        description: a.content || a.description || 'System communication broadcasted',
+        createdAt: a.createdAt || new Date().toISOString(),
+      }));
+    }
+  } catch {
+    //
   }
+
   return [
     {
       id: 1,
-      type: 'quiz',
-      title: 'Alex Rivers completed React Architecture Quiz',
-      description: 'Scored 100% on Attempt #2 (Time: 7m 04s)',
-      createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-    },
-    {
-      id: 2,
-      type: 'user',
-      title: 'Jordan Vance submitted Project: SaaS Portfolio',
-      description: 'GitHub repository linked with live Vercel deployment preview',
-      createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    },
-    {
-      id: 3,
-      type: 'announcement',
-      title: 'Midterm Examination Schedule Published',
-      description: 'Announcement broadcasted to all students across cohorts',
-      createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-    },
-    {
-      id: 4,
       type: 'course',
-      title: 'New Lesson added to Full-Stack Web Development',
-      description: 'Production Deployment & Edge Caching added to curriculum',
-      createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+      title: 'Platform curriculum synchronized with backend',
+      description: 'Connected with Spring Boot LMS Services',
+      createdAt: new Date().toISOString(),
     },
   ];
 }

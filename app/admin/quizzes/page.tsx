@@ -136,7 +136,7 @@ export default function AdminQuizzesPage() {
 
   // Delete Quiz mutation
   const deleteQuizMutation = useMutation({
-    mutationFn: (id: number) => quizService.deleteQuiz(id),
+    mutationFn: (id: string | number) => quizService.deleteQuiz(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'quizzes'] });
       toast.success('Quiz deleted');
@@ -181,7 +181,7 @@ export default function AdminQuizzesPage() {
 
   // Delete question mutation
   const deleteQuestionMutation = useMutation({
-    mutationFn: (qId: number) => quizService.deleteQuestion(qId),
+    mutationFn: (qId: string | number) => quizService.deleteQuestion(qId),
     onSuccess: () => {
       refetchQuestions();
       queryClient.invalidateQueries({ queryKey: ['admin', 'quizzes'] });
@@ -213,7 +213,7 @@ export default function AdminQuizzesPage() {
         ? new Date(quiz.closeTime).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16)
     );
-    setFormDuration(quiz.duration || quiz.timeLimit || 20);
+    setFormDuration(Number(quiz.duration || quiz.timeLimit || 20));
     setFormAttemptLimit(quiz.maxAttempts || 3);
     setFormTargetGroups((quiz.allowedGroups || []).join(', ') || 'Group Alpha');
     setIsQuizModalOpen(true);

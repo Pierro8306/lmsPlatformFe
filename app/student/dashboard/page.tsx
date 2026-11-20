@@ -313,7 +313,7 @@ export default function StudentDashboardPage() {
                         {a.title}
                       </p>
                       <p className="text-[#6B7385] text-xs mt-0.5">
-                        {format(new Date(a.createdAt), 'MMM d')}
+                        {format(new Date(a.createdAt || Date.now()), 'MMM d')}
                       </p>
                     </div>
                   </div>

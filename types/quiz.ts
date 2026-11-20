@@ -1,113 +1,130 @@
 export interface QuestionOption {
-  id: number;
-  questionId: number;
+  id: string | number;
+  questionId?: string | number;
   text: string;
   isCorrect: boolean;
-  order: number;
+  order?: number;
 }
 
 export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
 export interface Question {
-  id: number;
-  quizId: number;
+  id: string | number;
+  quizId?: string | number;
   text: string;
-  type: QuestionType;
-  points: number;
-  order: number;
+  type?: QuestionType;
+  points?: number;
+  order?: number;
   options: QuestionOption[];
-  explanation: string | null;
+  explanation?: string | null;
+  subject?: string;
 }
 
 export interface Quiz {
-  id: number;
-  courseId: number;
+  id: string | number;
+  courseId?: string | number;
   courseTitle?: string;
   title: string;
   description: string | null;
-  timeLimit: number | null; // in minutes
+  timeLimit: number | string | null; // minutes or "HH:mm:ss"
   duration?: number; // alias in minutes
-  passingScore: number;
-  maxAttempts: number;
+  passingScore?: number;
+  maxAttempts?: number;
   remainingAttempts?: number;
+  attemptsUsed?: number;
+  attemptCount?: number;
   openTime?: string;
   closeTime?: string;
+  startTime?: string;
+  endTime?: string;
+  userGroup?: string | null;
   allowedGroups?: string[];
-  status?: 'upcoming' | 'open' | 'closed';
-  isPublished: boolean;
-  questionCount: number;
-  totalPoints: number;
-  createdAt: string;
-  updatedAt: string;
+  status?: 'upcoming' | 'open' | 'closed' | 'UPCOMING' | 'OPEN' | 'CLOSED';
+  isPublished?: boolean;
+  questionCount?: number;
+  totalPoints?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface QuizAttempt {
-  id: number;
-  quizId: number;
-  studentId: number;
+  id: string | number;
+  quizId: string | number;
+  studentId?: string | number;
   startedAt: string;
-  submittedAt: string | null;
-  score: number | null;
-  passed: boolean | null;
-  attemptNumber: number;
+  deadline?: string;
+  submittedAt?: string | null;
+  score?: number | null;
+  passed?: boolean | null;
+  attemptNumber?: number;
 }
 
 export interface QuizResult {
-  attemptId: number;
-  quizId: number;
+  attemptId: string | number;
+  quizId: string | number;
   quizTitle?: string;
-  studentId: number;
+  studentId?: string | number;
   score: number;
+  points?: number;
   totalPoints: number;
+  totalQuestions?: number;
   percentage: number;
   passed: boolean;
   timeTaken: number; // in seconds
   isQuizClosed?: boolean;
   answers: QuizAnswerResult[];
+  correct?: { id_question: string; id_answer: string }[];
 }
 
 export interface QuizAnswerResult {
-  questionId: number;
+  questionId: string | number;
   questionText?: string;
-  selectedOptionId: number | null;
-  textAnswer: string | null;
+  selectedOptionId: string | number | null;
+  textAnswer?: string | null;
   isCorrect: boolean;
-  correctOptionId?: number;
+  correctOptionId?: string | number;
   correctOptionText?: string;
   explanation?: string | null;
   pointsEarned: number;
 }
 
 export interface QuizSubmission {
-  quizId: number;
+  quizId: string | number;
   answers: QuizAnswerSubmit[];
 }
 
 export interface QuizAnswerSubmit {
-  questionId: number;
-  selectedOptionId: number | null;
-  textAnswer: string | null;
+  questionId: string | number;
+  selectedOptionId: string | number | null;
+  textAnswer?: string | null;
 }
 
 export interface StudentQuizResult {
-  studentId: number;
-  studentName: string;
-  studentEmail: string;
+  studentId?: string | number;
+  studentName?: string;
+  studentEmail?: string;
+  username?: string;
   group?: string;
-  attempts: number;
-  bestScore: number;
-  maxScore: number;
-  bestPercentage: number;
-  completionPercentage: number;
-  timeTaken: number; // in seconds
-  passed: boolean;
-  lastAttemptAt: string;
+  attempts?: number;
+  bestScore?: number;
+  points?: number;
+  maxScore?: number;
+  totalQuestions?: number;
+  bestPercentage?: number;
+  completionPercentage?: number;
+  timeTaken?: number | string; // in seconds or HH:mm:ss
+  passed?: boolean;
+  status?: string;
+  lastAttemptAt?: string;
+  startedAt?: string;
+  submittedAt?: string;
 }
 
 export interface ExtractedQuestion {
   id: string;
   text: string;
   points: number;
+  subject?: string;
   options: {
     id: string;
     text: string;

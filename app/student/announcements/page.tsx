@@ -24,7 +24,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import type { Announcement } from '@/types/announcement';
 
 export default function StudentAnnouncementsPage() {
-  const [readIds, setReadIds] = React.useState<Set<number>>(new Set([3]));
+  const [readIds, setReadIds] = React.useState<Set<string | number>>(new Set());
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const { data: annData, isLoading } = useQuery({
@@ -40,15 +40,15 @@ export default function StudentAnnouncementsPage() {
     toast.success('All announcements marked as read');
   };
 
-  const markSingleRead = (id: number) => {
+  const markSingleRead = (id: string | number) => {
     setReadIds((prev) => new Set([...prev, id]));
   };
 
   const filtered = announcements.filter(
     (a) =>
       a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.author.toLowerCase().includes(searchQuery.toLowerCase())
+      (a.content || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (a.author || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const unreadCount = announcements.filter((a) => !readIds.has(a.id)).length;
@@ -129,7 +129,7 @@ export default function StudentAnnouncementsPage() {
                   </div>
 
                   <span className="text-xs text-text-muted">
-                    {format(new Date(ann.createdAt), 'MMM d, yyyy h:mm a')}
+                    {format(new Date(ann.createdAt || Date.now()), 'MMM d, yyyy h:mm a')}
                   </span>
                 </div>
 

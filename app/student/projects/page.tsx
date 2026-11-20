@@ -50,7 +50,7 @@ export default function StudentProjectsPage() {
     queryKey: ['student', 'my-submissions'],
     queryFn: async () => {
       const allProjects = await projectService.getAllProjects();
-      const results: { projectId: number; submission: ProjectSubmission | null }[] = [];
+      const results: { projectId: string | number; submission: ProjectSubmission | null }[] = [];
       for (const p of allProjects) {
         const sub = await projectService.getMySubmission(p.id);
         results.push({ projectId: p.id, submission: sub });
@@ -124,7 +124,7 @@ export default function StudentProjectsPage() {
       <div className="space-y-5">
         {projects.map((project) => {
           const isOverdue = project.dueDate ? new Date() > new Date(project.dueDate) : false;
-          const userSubEntry = mySubmissions.find((s) => s.projectId === project.id);
+          const userSubEntry = mySubmissions.find((s) => String(s.projectId) === String(project.id));
           const mySubmission = userSubEntry?.submission;
 
           return (

@@ -27,7 +27,7 @@ import { Progress } from '@/components/ui/progress';
 
 export default function StudentCourseDetailPage() {
   const params = useParams();
-  const courseId = Number(params.id) || 1;
+  const courseId = (params.id as string) || '';
 
   const { data: course, isLoading: isCourseLoading } = useQuery({
     queryKey: ['student', 'course-detail', courseId],

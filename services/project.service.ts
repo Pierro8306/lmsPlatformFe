@@ -1,317 +1,250 @@
 import apiClient from '@/lib/api/axios';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { sleep } from '@/lib/utils';
+import { getUserRole } from '@/lib/auth';
 import type {
   Project,
   ProjectSubmission,
   ProjectWithSubmissions,
   GradeSubmissionRequest,
   CreateProjectSubmissionRequest,
+  SubmissionStatus,
 } from '@/types/project';
 import type { ProjectFormValues } from '@/lib/validators';
 
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
+interface BackendProjectResponse {
+  id: string;
+  title: string;
+  description: string | null;
+  deadline: string;
+  userGroup: string | null;
+}
 
-let mockProjects: Project[] = [
-  {
-    id: 1,
+interface BackendSubmissionDto {
+  id: string;
+  userName: string;
+  github_url: string;
+  submittedAt: string;
+  status: string;
+  score: string | null;
+  feedback: string | null;
+}
+
+function mapBackendToProject(p: BackendProjectResponse): Project {
+  return {
+    id: p.id,
     courseId: 1,
-    title: 'Modern Full-Stack SaaS Portfolio Website',
-    description:
-      'Build and deploy a responsive personal portfolio with Next.js 14, Tailwind CSS, dark mode support, and an interactive contact form.',
-    requirements:
-      '1. Implement modern dark palette design system\n2. Include at least 4 projects with live demo links\n3. Responsive across mobile, tablet, and desktop\n4. Verified GitHub repository with meaningful commits\n5. Deployed to Vercel or Netlify',
-    dueDate: new Date(Date.now() + 86400000 * 3).toISOString(),
-    maxScore: 10,
-    allowLateSubmission: true,
-    isPublished: true,
-    submissionCount: 3,
-    createdAt: '2024-10-01T00:00:00Z',
-    updatedAt: '2024-10-01T00:00:00Z',
-  },
-  {
-    id: 2,
-    courseId: 1,
-    title: 'E-Commerce Marketplace with Stripe Integration',
-    description:
-      'Build a complete multi-vendor shopping platform with cart management, webhooks, and an administrative order management dashboard.',
-    requirements:
-      '1. Product catalog with filtering and search\n2. Shopping cart persistence in Zustand / LocalStorage\n3. Stripe Elements test integration\n4. Role-based routes for vendors and buyers',
-    dueDate: new Date(Date.now() + 86400000 * 10).toISOString(),
+    title: p.title,
+    description: p.description || '',
+    requirements: '1. Follow system development lifecycle\n2. Submit valid GitHub repo link\n3. Include README documentation',
+    dueDate: p.deadline,
+    deadline: p.deadline,
+    userGroup: p.userGroup,
     maxScore: 10,
     allowLateSubmission: false,
     isPublished: true,
-    submissionCount: 1,
-    createdAt: '2024-10-15T00:00:00Z',
-    updatedAt: '2024-10-15T00:00:00Z',
-  },
-  {
-    id: 3,
-    courseId: 2,
-    title: 'Exploratory Data Analysis & ML Classifier Pipeline',
-    description:
-      'Analyze the UCI Machine Learning repository dataset using pandas, seaborn, and scikit-learn random forest classifier.',
-    requirements:
-      '1. Data cleaning and missing value imputation\n2. Visualizations with seaborn correlation heatmaps\n3. Hyperparameter tuning using GridSearchCV\n4. Confusion matrix and classification report',
-    dueDate: new Date(Date.now() - 86400000 * 1).toISOString(), // overdue
-    maxScore: 10,
-    allowLateSubmission: true,
-    isPublished: true,
-    submissionCount: 2,
-    createdAt: '2024-10-20T00:00:00Z',
-    updatedAt: '2024-10-20T00:00:00Z',
-  },
-];
-
-let mockSubmissions: ProjectSubmission[] = [
-  {
-    id: 1,
-    projectId: 1,
-    studentId: 2,
-    studentName: 'Alex Rivers',
-    studentEmail: 'student@eduflow.dev',
-    repositoryUrl: 'https://github.com/alexrivers/eduflow-portfolio',
-    deployedUrl: 'https://alexrivers.vercel.app',
-    notes: 'Built with Next.js 14 App Router, Tailwind CSS, and Framer Motion micro-interactions.',
-    status: 'graded',
-    score: 9.5,
-    feedback: 'Exceptional visual polish and clean component separation! Accessibility focus states look great.',
-    submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    gradedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-    gradedBy: 'Alice Admin',
-  },
-  {
-    id: 2,
-    projectId: 1,
-    studentId: 3,
-    studentName: 'Jordan Vance',
-    studentEmail: 'jvance@eduflow.dev',
-    repositoryUrl: 'https://github.com/jvance/developer-portfolio',
-    deployedUrl: 'https://jvance-portfolio.netlify.app',
-    notes: 'Added dark mode toggle and blog markdown preview section.',
-    status: 'submitted',
-    score: null,
-    feedback: null,
-    submittedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-    gradedAt: null,
-    gradedBy: null,
-  },
-  {
-    id: 3,
-    projectId: 1,
-    studentId: 4,
-    studentName: 'Morgan Lee',
-    studentEmail: 'mlee@eduflow.dev',
-    repositoryUrl: 'https://github.com/mlee/saas-showcase',
-    deployedUrl: null,
-    notes: 'Submitted past deadline due to local build configuration issues.',
-    status: 'late',
-    score: null,
-    feedback: null,
-    submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    gradedAt: null,
-    gradedBy: null,
-  },
-];
-
-export async function getAllProjects(): Promise<Project[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<Project[]>('/projects/');
-    return data;
-  }
-  await sleep(400);
-  return [...mockProjects];
+    submissionCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
-export async function getProjects(courseId: number): Promise<Project[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<Project[]>(ENDPOINTS.PROJECTS.LIST(courseId));
-    return data;
-  }
-  await sleep(400);
-  return mockProjects.filter((p) => p.courseId === courseId);
+function mapBackendToSubmission(
+  s: BackendSubmissionDto,
+  projectId: string | number
+): ProjectSubmission {
+  const statusLower = (s.status || 'submitted').toLowerCase() as SubmissionStatus;
+
+  return {
+    id: s.id,
+    projectId,
+    studentName: s.userName,
+    userName: s.userName,
+    studentEmail: `${s.userName}@eduflow.dev`,
+    repositoryUrl: s.github_url,
+    github_url: s.github_url,
+    deployedUrl: null,
+    notes: null,
+    status: statusLower,
+    score: s.score ? Number(s.score) : null,
+    feedback: s.feedback,
+    submittedAt: s.submittedAt || new Date().toISOString(),
+    gradedAt: s.status === 'GRADED' ? s.submittedAt : null,
+    gradedBy: 'Administrator',
+  };
+}
+
+export async function getAllProjects(): Promise<Project[]> {
+  const role = getUserRole();
+  const url = role === 'admin' ? ENDPOINTS.PROJECTS.LIST : ENDPOINTS.PROJECTS.STUDENT_LIST;
+
+  const { data } = await apiClient.get<BackendProjectResponse[]>(url);
+  return (Array.isArray(data) ? data : []).map(mapBackendToProject);
+}
+
+export async function getProjects(_courseId?: string | number): Promise<Project[]> {
+  return getAllProjects();
 }
 
 export async function getProjectById(
-  projectId: number,
-  courseId: number = 1
+  projectId: string | number,
+  _courseId?: string | number
 ): Promise<ProjectWithSubmissions> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<ProjectWithSubmissions>(
-      ENDPOINTS.PROJECTS.DETAIL(courseId, projectId)
-    );
-    return data;
+  const role = getUserRole();
+  const url = role === 'admin'
+    ? ENDPOINTS.PROJECTS.DETAIL(projectId)
+    : ENDPOINTS.PROJECTS.STUDENT_DETAIL(projectId);
+
+  const { data } = await apiClient.get<BackendProjectResponse>(url);
+  const project = mapBackendToProject(data);
+
+  let submissions: ProjectSubmission[] = [];
+  if (role === 'admin') {
+    try {
+      const subRes = await getSubmissions(projectId);
+      submissions = subRes;
+      project.submissionCount = submissions.length;
+    } catch {
+      // Submissions not loaded yet
+    }
+  } else {
+    try {
+      const mySub = await getMySubmission(projectId);
+      if (mySub) submissions = [mySub];
+    } catch {
+      // Student has not submitted yet
+    }
   }
-  await sleep(400);
-  const project = mockProjects.find((p) => p.id === projectId);
-  if (!project) throw new Error('Project not found');
+
   return {
     ...project,
-    submissions: mockSubmissions.filter((s) => s.projectId === projectId),
+    submissions,
   };
 }
 
 export async function createProject(
   payload: ProjectFormValues,
-  courseId: number = 1
+  _courseId?: string | number
 ): Promise<Project> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<Project>(ENDPOINTS.PROJECTS.CREATE(courseId), payload);
-    return data;
+  // Ensure deadline is in the future as required by BE @Future validator
+  let deadline = payload.dueDate ? new Date(payload.dueDate).toISOString() : '';
+  if (!deadline || new Date(deadline) <= new Date()) {
+    deadline = new Date(Date.now() + 86400000 * 7).toISOString();
   }
-  await sleep(500);
-  const newProject: Project = {
-    id: Date.now(),
-    courseId,
-    title: payload.title,
-    description: payload.description,
-    requirements: payload.requirements,
-    dueDate: payload.dueDate ?? null,
-    maxScore: payload.maxScore || 10,
-    allowLateSubmission: payload.allowLateSubmission ?? false,
-    isPublished: payload.isPublished ?? true,
-    submissionCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  mockProjects.unshift(newProject);
-  return newProject;
+
+  const { data } = await apiClient.post<BackendProjectResponse>(ENDPOINTS.PROJECTS.CREATE, {
+    title: payload.title.trim(),
+    description: payload.description?.trim() || 'Project Assignment Description',
+    deadline,
+    userGroup: null,
+  });
+
+  return mapBackendToProject(data);
 }
 
 export async function updateProject(
-  projectId: number,
+  projectId: string | number,
   payload: Partial<ProjectFormValues>,
-  courseId: number = 1
+  _courseId?: string | number
 ): Promise<Project> {
-  if (HAS_API) {
-    const { data } = await apiClient.patch<Project>(
-      ENDPOINTS.PROJECTS.UPDATE(courseId, projectId),
-      payload
-    );
-    return data;
+  let deadline = payload.dueDate ? new Date(payload.dueDate).toISOString() : '';
+  if (!deadline || new Date(deadline) <= new Date()) {
+    deadline = new Date(Date.now() + 86400000 * 7).toISOString();
   }
-  await sleep(400);
-  const idx = mockProjects.findIndex((p) => p.id === projectId);
-  if (idx === -1) throw new Error('Project not found');
-  const updated: Project = {
-    ...mockProjects[idx],
-    ...payload,
-    updatedAt: new Date().toISOString(),
-  };
-  mockProjects[idx] = updated;
-  return updated;
+
+  const { data } = await apiClient.put<BackendProjectResponse>(
+    ENDPOINTS.PROJECTS.UPDATE(projectId),
+    {
+      title: payload.title?.trim(),
+      description: payload.description?.trim() || '',
+      deadline,
+      userGroup: null,
+    }
+  );
+
+  return mapBackendToProject(data);
 }
 
-export async function deleteProject(projectId: number, courseId: number = 1): Promise<void> {
-  if (HAS_API) {
-    await apiClient.delete(ENDPOINTS.PROJECTS.DELETE(courseId, projectId));
-    return;
-  }
-  await sleep(400);
-  mockProjects = mockProjects.filter((p) => p.id !== projectId);
-  mockSubmissions = mockSubmissions.filter((s) => s.projectId !== projectId);
+export async function deleteProject(
+  projectId: string | number,
+  _courseId?: string | number
+): Promise<void> {
+  await apiClient.delete(ENDPOINTS.PROJECTS.DELETE(projectId));
 }
 
 export async function getSubmissions(
-  projectId: number,
-  courseId: number = 1
+  projectId: string | number,
+  _courseId?: string | number
 ): Promise<ProjectSubmission[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<ProjectSubmission[]>(
-      ENDPOINTS.PROJECTS.SUBMISSIONS(courseId, projectId)
-    );
-    return data;
-  }
-  await sleep(400);
-  return mockSubmissions.filter((s) => s.projectId === projectId);
+  const { data } = await apiClient.get<BackendSubmissionDto[]>(
+    ENDPOINTS.PROJECTS.SUBMISSIONS(projectId)
+  );
+
+  return (Array.isArray(data) ? data : []).map((s) => mapBackendToSubmission(s, projectId));
 }
 
 export async function submitProject(
-  projectId: number,
+  projectId: string | number,
   payload: CreateProjectSubmissionRequest,
-  courseId: number = 1
+  _courseId?: string | number
 ): Promise<ProjectSubmission> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<ProjectSubmission>(
-      ENDPOINTS.PROJECTS.SUBMIT(courseId, projectId),
-      payload
-    );
-    return data;
-  }
-  await sleep(600);
-  const project = mockProjects.find((p) => p.id === projectId);
-  const isLate = project?.dueDate ? new Date() > new Date(project.dueDate) : false;
+  const githubUrl = payload.githubUrl || payload.repositoryUrl || '';
 
-  const newSub: ProjectSubmission = {
-    id: Date.now(),
+  await apiClient.post(ENDPOINTS.PROJECTS.SUBMIT, {
+    projectId: String(projectId),
+    githubUrl,
+  });
+
+  return {
+    id: `sub-${Date.now()}`,
     projectId,
-    studentId: 2,
-    studentName: 'Alex Rivers',
-    studentEmail: 'student@eduflow.dev',
-    repositoryUrl: payload.repositoryUrl,
-    deployedUrl: payload.deployedUrl ?? null,
-    notes: payload.notes ?? null,
-    status: isLate ? 'late' : 'submitted',
+    repositoryUrl: githubUrl,
+    github_url: githubUrl,
+    deployedUrl: payload.deployedUrl || null,
+    notes: payload.notes || null,
+    status: 'submitted',
     score: null,
     feedback: null,
     submittedAt: new Date().toISOString(),
-    gradedAt: null,
-    gradedBy: null,
   };
-
-  // Replace or add
-  const existingIdx = mockSubmissions.findIndex(
-    (s) => s.projectId === projectId && s.studentId === 2
-  );
-  if (existingIdx >= 0) {
-    mockSubmissions[existingIdx] = newSub;
-  } else {
-    mockSubmissions.push(newSub);
-  }
-
-  if (project) {
-    project.submissionCount = mockSubmissions.filter((s) => s.projectId === projectId).length;
-  }
-
-  return newSub;
 }
 
 export async function gradeSubmission(
-  submissionId: number,
+  submissionId: string | number,
   payload: GradeSubmissionRequest,
-  projectId: number = 1,
-  courseId: number = 1
+  _projectId?: string | number,
+  _courseId?: string | number
 ): Promise<ProjectSubmission> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<ProjectSubmission>(
-      ENDPOINTS.PROJECTS.GRADE(courseId, projectId, submissionId),
-      payload
-    );
-    return data;
-  }
-  await sleep(400);
-  const sub = mockSubmissions.find((s) => s.id === submissionId);
-  if (!sub) throw new Error('Submission not found');
-  sub.score = payload.score;
-  sub.feedback = payload.feedback;
-  sub.status = payload.status;
-  sub.gradedAt = new Date().toISOString();
-  sub.gradedBy = 'Alice Admin';
-  return { ...sub };
+  await apiClient.put(ENDPOINTS.PROJECTS.GRADE(submissionId), {
+    score: payload.score,
+    feedback: payload.feedback || '',
+  });
+
+  return {
+    id: submissionId,
+    projectId: 1,
+    repositoryUrl: '',
+    status: 'graded',
+    score: payload.score,
+    feedback: payload.feedback || '',
+    submittedAt: new Date().toISOString(),
+    gradedAt: new Date().toISOString(),
+    gradedBy: 'Administrator',
+  };
 }
 
 export async function getMySubmission(
-  projectId: number,
-  courseId: number = 1
+  projectId: string | number,
+  _courseId?: string | number
 ): Promise<ProjectSubmission | null> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<ProjectSubmission | null>(
-      ENDPOINTS.PROJECTS.MY_SUBMISSION(courseId, projectId)
+  try {
+    const { data } = await apiClient.get<BackendSubmissionDto>(
+      ENDPOINTS.PROJECTS.MY_SUBMISSION(projectId)
     );
-    return data;
+    if (!data) return null;
+    return mapBackendToSubmission(data, projectId);
+  } catch {
+    return null;
   }
-  await sleep(300);
-  return mockSubmissions.find((s) => s.projectId === projectId && s.studentId === 2) ?? null;
 }
 
 export const projectService = {

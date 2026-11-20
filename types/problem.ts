@@ -12,7 +12,15 @@ export type Verdict =
   | 'RUNTIME_ERROR'
   | 'COMPILE_ERROR'
   | 'RUNNING'
-  | 'IN_QUEUE';
+  | 'IN_QUEUE'
+  | 'AC'
+  | 'WA'
+  | 'TLE'
+  | 'MLE'
+  | 'RTE'
+  | 'OLE'
+  | 'CE'
+  | 'SE';
 
 export interface TestCase {
   id: string;
@@ -20,34 +28,41 @@ export interface TestCase {
   input: string;
   expectedOutput: string;
   isVisible: boolean;
-  points: number;
-  order: number;
+  points?: number;
+  order?: number;
 }
 
 export interface TestResult {
-  testCaseId: string;
+  testCaseId?: string;
+  id?: number | string;
+  verdict?: Verdict;
   passed: boolean;
   input?: string;
   expectedOutput?: string;
   actualOutput?: string;
-  executionTimeMs: number;
-  memoryKb: number;
+  executionTimeMs?: number;
+  timeMs?: number;
+  memoryKb?: number;
   errorMessage?: string;
-  isVisible: boolean;
+  message?: string;
+  isVisible?: boolean;
 }
 
 export interface JudgeResult {
-  submissionId: string;
+  submissionId?: string;
   verdict: Verdict;
   passedTests: number;
   totalTests: number;
   executionTimeMs: number;
   memoryKb: number;
   score: number;
+  maxScore?: number;
   compileOutput?: string;
+  message?: string;
   stdout?: string;
   stderr?: string;
   testResults: TestResult[];
+  results?: TestResult[];
 }
 
 export interface LineComment {
@@ -55,7 +70,7 @@ export interface LineComment {
   submissionId: string;
   lineNumber: number;
   author: {
-    id: number;
+    id: number | string;
     name: string;
     role: 'admin' | 'instructor';
     avatar?: string | null;
@@ -70,17 +85,19 @@ export interface Submission {
   id: string;
   problemId: string;
   problemTitle?: string;
-  studentId: number;
-  studentName: string;
-  studentEmail: string;
+  studentId?: number | string;
+  studentName?: string;
+  userName?: string;
+  studentEmail?: string;
   language: Language;
-  code: string;
+  code?: string;
+  sourceCode?: string;
   verdict: Verdict;
   passedTests: number;
   totalTests: number;
   executionTimeMs: number;
   memoryKb: number;
-  score: number; // 0-10
+  score: number; // 0-10 or 0-100
   submittedAt: string;
   isLate?: boolean;
   feedback?: string;
@@ -91,12 +108,14 @@ export interface Submission {
 export interface Problem {
   id: string;
   title: string;
-  slug: string;
+  slug?: string;
   difficulty: Difficulty;
   tags: string[];
   timeLimitMs: number;
-  memoryLimitMb: number;
-  description: string;
+  memoryLimitMb?: number;
+  memoryLimitKb?: number;
+  description?: string;
+  content?: string;
   inputFormat?: string;
   outputFormat?: string;
   constraints?: string;
@@ -105,19 +124,31 @@ export interface Problem {
     output: string;
     explanation?: string;
   }>;
+  samples?: Array<{
+    input: string;
+    expectedOutput: string;
+  }>;
   allowedLanguages: Language[];
   starterCode: Record<Language, string>;
   assignedCourseId?: number | null;
   assignedGroupName?: string | null;
+  groupIds?: string[];
+  startAt?: string | null;
   deadline?: string | null;
-  totalPoints: number;
+  allowLate?: boolean;
+  maxAttempts?: number;
+  attemptsUsed?: number;
+  open?: boolean;
+  totalPoints?: number;
   testCases?: TestCase[];
+  testCaseCount?: number;
   userStatus?: ProblemStatus;
   userBestScore?: number;
   totalSubmissions?: number;
   acceptanceRate?: number;
-  createdAt: string;
-  updatedAt: string;
+  published?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface RunCodeRequest {
@@ -141,6 +172,6 @@ export interface AddLineCommentRequest {
 }
 
 export interface GradeSubmissionRequest {
-  score: number; // 0-10
+  score: number;
   feedback?: string;
 }

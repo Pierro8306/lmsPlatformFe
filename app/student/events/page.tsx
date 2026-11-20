@@ -29,17 +29,10 @@ export default function StudentEventsPage() {
   const { user } = useAuthStore();
 
   // Optimistic tracking of user joined events: Map of eventId -> boolean
-  const [joinedMap, setJoinedMap] = React.useState<Record<number, boolean>>({
-    1: true, // sample: student initially joined event 1
-    2: true,
-  });
+  const [joinedMap, setJoinedMap] = React.useState<Record<string, boolean>>({});
 
   // Participant counts map: eventId -> count
-  const [countsMap, setCountsMap] = React.useState<Record<number, number>>({
-    1: 18,
-    2: 12,
-    3: 7,
-  });
+  const [countsMap, setCountsMap] = React.useState<Record<string, number>>({});
 
   const { data: eventData, isLoading } = useQuery({
     queryKey: ['student', 'events'],
@@ -50,28 +43,27 @@ export default function StudentEventsPage() {
 
   // Toggle Join/Leave mutation with OPTIMISTIC UI update
   const toggleMutation = useMutation({
-    mutationFn: async (eventId: number) => {
-      const isCurrentlyJoined = !!joinedMap[eventId];
+    mutationFn: async (eventId: string | number) => {
       return eventService.toggleEventAttendance(
         eventId,
-        user?.id || 2,
-        user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Alex Rivers',
+        user?.id || 'me',
+        user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Student',
         user?.email || 'student@eduflow.dev'
       );
     },
-    onMutate: async (eventId: number) => {
-      // Optimistic update
-      const wasJoined = !!joinedMap[eventId];
+    onMutate: async (eventId: string | number) => {
+      const key = String(eventId);
+      const wasJoined = !!joinedMap[key];
       const nextJoined = !wasJoined;
 
       setJoinedMap((prev) => ({
         ...prev,
-        [eventId]: nextJoined,
+        [key]: nextJoined,
       }));
 
       setCountsMap((prev) => ({
         ...prev,
-        [eventId]: (prev[eventId] || 0) + (nextJoined ? 1 : -1),
+        [key]: Math.max(0, (prev[key] || 0) + (nextJoined ? 1 : -1)),
       }));
 
       if (nextJoined) {
@@ -82,15 +74,16 @@ export default function StudentEventsPage() {
     },
     onError: (err, eventId) => {
       // Rollback on error
+      const key = String(eventId);
       setJoinedMap((prev) => ({
         ...prev,
-        [eventId]: !prev[eventId],
+        [key]: !prev[key],
       }));
       toast.error('Failed to update RSVP. Please try again.');
     },
   });
 
-  const handleToggle = (eventId: number) => {
+  const handleToggle = (eventId: string | number) => {
     toggleMutation.mutate(eventId);
   };
 
@@ -105,8 +98,8 @@ export default function StudentEventsPage() {
       {/* Events Feed */}
       <div className="space-y-4">
         {events.map((ev) => {
-          const isJoined = !!joinedMap[ev.id];
-          const participantCount = countsMap[ev.id] ?? 10;
+          const isJoined = !!joinedMap[String(ev.id)];
+          const participantCount = countsMap[String(ev.id)] ?? 0;
 
           return (
             <motion.div
@@ -131,7 +124,7 @@ export default function StudentEventsPage() {
                     }
                     className="text-xs capitalize font-semibold"
                   >
-                    {ev.type.replace('_', ' ')}
+                    {(ev.type || 'other').replace('_', ' ')}
                   </Badge>
 
                   {isJoined && (
@@ -161,7 +154,7 @@ export default function StudentEventsPage() {
                 <div className="space-y-1.5 text-xs text-text-muted pt-1">
                   <div className="flex items-center gap-2">
                     <Clock className="w-3.5 h-3.5 text-accent-cyan" />
-                    <span>{format(new Date(ev.startDate), 'EEEE, MMMM d, yyyy • h:mm a')}</span>
+                    <span>{format(new Date(ev.startDate || Date.now()), 'EEEE, MMMM d, yyyy • h:mm a')}</span>
                   </div>
 
                   {ev.location && (

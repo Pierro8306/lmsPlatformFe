@@ -1,110 +1,57 @@
 import apiClient from '@/lib/api/axios';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { sleep } from '@/lib/utils';
-import type { Event, EventParticipant } from '@/types/announcement';
+import { getUserRole } from '@/lib/auth';
+import type { Event, EventParticipant, EventType } from '@/types/announcement';
 import type { EventFormValues } from '@/lib/validators';
 import type { PaginatedResponse } from '@/types/api';
 
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
+interface BackendEventResponse {
+  id: string;
+  title: string;
+  description: string;
+  date: string; // "YYYY-MM-DD"
+}
 
-let mockEvents: Event[] = [
-  {
-    id: 1,
-    title: 'Advanced Next.js 14 Workshop: Server Actions & Cache',
-    description:
-      'Deep dive into React Server Components, server actions, optimistic UI, and advanced cache invalidation strategies.',
-    type: 'live_session',
-    startDate: new Date(Date.now() + 86400000 * 2).toISOString(),
-    endDate: new Date(Date.now() + 86400000 * 2 + 7200000).toISOString(),
-    location: 'Virtual Classroom (Zoom)',
-    meetingUrl: 'https://zoom.us/j/eduflow-workshop-1',
-    courseId: 1,
-    courseName: 'Full-Stack Web Development',
-    isAllDay: false,
-    createdBy: 'Alice Admin',
-    createdAt: '2024-11-01T00:00:00Z',
-    updatedAt: '2024-11-01T00:00:00Z',
-  },
-  {
-    id: 2,
-    title: 'Project 1 Submission Deadline: E-Commerce Store',
-    description:
-      'Final deadline to submit repository URL and deployed preview for the full-stack project.',
-    type: 'deadline',
-    startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-    endDate: null,
-    location: null,
-    meetingUrl: null,
-    courseId: 1,
-    courseName: 'Full-Stack Web Development',
-    isAllDay: true,
-    createdBy: 'Alice Admin',
-    createdAt: '2024-11-05T00:00:00Z',
-    updatedAt: '2024-11-05T00:00:00Z',
-  },
-  {
-    id: 3,
-    title: 'Interactive AI & Data Science Quiz Window',
-    description:
-      'Timed quiz assessment covering NumPy, pandas, and linear regression principles.',
-    type: 'exam',
-    startDate: new Date(Date.now() + 86400000 * 7).toISOString(),
-    endDate: new Date(Date.now() + 86400000 * 7 + 3600000 * 4).toISOString(),
-    location: 'Online Exam Portal',
-    meetingUrl: null,
-    courseId: 2,
-    courseName: 'Python for Data Science',
-    isAllDay: false,
-    createdBy: 'Alice Admin',
-    createdAt: '2024-11-08T00:00:00Z',
-    updatedAt: '2024-11-08T00:00:00Z',
-  },
-];
+interface BackendMemberResponse {
+  userId: string;
+  username: string;
+  email: string;
+}
 
-let mockParticipants: Record<number, EventParticipant[]> = {
-  1: [
-    {
-      id: 101,
-      eventId: 1,
-      userId: 2,
-      userName: 'Alex Rivers',
-      userEmail: 'student@eduflow.dev',
-      status: 'accepted',
-      joinedAt: '2024-11-12T10:00:00Z',
-    },
-    {
-      id: 102,
-      eventId: 1,
-      userId: 3,
-      userName: 'Morgan Lee',
-      userEmail: 'morgan@eduflow.dev',
-      status: 'accepted',
-      joinedAt: '2024-11-13T12:00:00Z',
-    },
-  ],
-  2: [
-    {
-      id: 103,
-      eventId: 2,
-      userId: 2,
-      userName: 'Alex Rivers',
-      userEmail: 'student@eduflow.dev',
-      status: 'accepted',
-      joinedAt: '2024-11-11T09:30:00Z',
-    },
-  ],
-  3: [],
-};
+function mapToEvent(e: BackendEventResponse): Event {
+  const dateStr = e.date ? `${e.date}T09:00:00Z` : new Date().toISOString();
+
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description || '',
+    type: 'live_session' as EventType,
+    date: e.date,
+    startDate: dateStr,
+    endDate: dateStr,
+    location: 'Virtual Online Session',
+    meetingUrl: 'https://zoom.us',
+    courseId: 1,
+    courseName: 'Platform Event',
+    isAllDay: false,
+    createdBy: 'Administrator',
+    createdAt: dateStr,
+    updatedAt: dateStr,
+  };
+}
 
 export async function getEvents(): Promise<PaginatedResponse<Event>> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<PaginatedResponse<Event>>(ENDPOINTS.EVENTS.LIST);
-    return data;
-  }
-  await sleep(400);
+  const role = getUserRole();
+  const url = role === 'admin'
+    ? ENDPOINTS.EVENTS.LIST
+    : ENDPOINTS.EVENTS.STUDENT_LIST;
+
+  const { data } = await apiClient.get<BackendEventResponse[]>(url);
+  const items = (Array.isArray(data) ? data : []).map(mapToEvent);
+
   return {
-    results: [...mockEvents],
-    count: mockEvents.length,
+    results: items,
+    count: items.length,
     next: null,
     previous: null,
     totalPages: 1,
@@ -113,100 +60,95 @@ export async function getEvents(): Promise<PaginatedResponse<Event>> {
 }
 
 export async function createEvent(payload: EventFormValues): Promise<Event> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<Event>(ENDPOINTS.EVENTS.CREATE, payload);
-    return data;
-  }
-  await sleep(500);
-  const newEvent: Event = {
-    id: Date.now(),
-    title: payload.title,
-    description: payload.description ?? null,
-    type: payload.type,
-    startDate: payload.startDate,
-    endDate: payload.endDate ?? null,
-    location: payload.location ?? null,
-    meetingUrl: payload.meetingUrl ?? null,
-    courseId: payload.courseId ?? null,
-    courseName: payload.courseId ? `Course ${payload.courseId}` : null,
+  // Format to YYYY-MM-DD for LocalDate in Spring Boot
+  const dateObj = payload.startDate ? new Date(payload.startDate) : new Date();
+  const dateStr = dateObj.toISOString().split('T')[0];
+
+  const { data } = await apiClient.post<BackendEventResponse>(ENDPOINTS.EVENTS.CREATE, {
+    title: payload.title.trim(),
+    description: payload.description?.trim() || '',
+    date: dateStr,
+  });
+
+  return mapToEvent(data || { id: `event-${Date.now()}`, title: payload.title, description: payload.description || '', date: dateStr });
+}
+
+export async function updateEvent(
+  id: string | number,
+  payload: Partial<EventFormValues>
+): Promise<Event> {
+  const dateObj = payload.startDate ? new Date(payload.startDate) : new Date();
+  const dateStr = dateObj.toISOString().split('T')[0];
+
+  await apiClient.put(ENDPOINTS.EVENTS.UPDATE(id), {
+    title: payload.title?.trim(),
+    description: payload.description?.trim() || '',
+    date: dateStr,
+  });
+
+  return {
+    id,
+    title: payload.title || '',
+    description: payload.description || null,
+    type: payload.type || 'live_session',
+    date: dateStr,
+    startDate: payload.startDate || new Date().toISOString(),
+    endDate: payload.endDate || null,
+    location: payload.location || null,
+    meetingUrl: payload.meetingUrl || null,
+    courseId: payload.courseId || null,
+    courseName: null,
     isAllDay: payload.isAllDay ?? false,
-    createdBy: 'Alice Admin',
+    createdBy: 'Administrator',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  mockEvents.unshift(newEvent);
-  mockParticipants[newEvent.id] = [];
-  return newEvent;
 }
 
-export async function updateEvent(id: number, payload: Partial<EventFormValues>): Promise<Event> {
-  if (HAS_API) {
-    const { data } = await apiClient.put<Event>(ENDPOINTS.EVENTS.DETAIL(id), payload);
-    return data;
-  }
-  await sleep(400);
-  const idx = mockEvents.findIndex((e) => e.id === id);
-  if (idx === -1) throw new Error('Event not found');
-  const updated: Event = {
-    ...mockEvents[idx],
-    ...payload,
-    updatedAt: new Date().toISOString(),
-  };
-  mockEvents[idx] = updated;
-  return updated;
+export async function deleteEvent(id: string | number): Promise<void> {
+  await apiClient.delete(ENDPOINTS.EVENTS.DELETE(id));
 }
 
-export async function deleteEvent(id: number): Promise<void> {
-  if (HAS_API) {
-    await apiClient.delete(ENDPOINTS.EVENTS.DETAIL(id));
-    return;
-  }
-  await sleep(400);
-  mockEvents = mockEvents.filter((e) => e.id !== id);
-  delete mockParticipants[id];
-}
+export async function getEventParticipants(eventId: string | number): Promise<EventParticipant[]> {
+  try {
+    const { data } = await apiClient.get<BackendMemberResponse[]>(
+      ENDPOINTS.EVENTS.PARTICIPANTS(eventId)
+    );
 
-export async function getEventParticipants(eventId: number): Promise<EventParticipant[]> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<EventParticipant[]>(ENDPOINTS.EVENTS.PARTICIPANTS(eventId));
-    return data;
+    return (Array.isArray(data) ? data : []).map((m, idx) => ({
+      id: idx + 1,
+      eventId,
+      userId: m.userId,
+      userName: m.username,
+      username: m.username,
+      userEmail: m.email,
+      email: m.email,
+      status: 'accepted',
+      joinedAt: new Date().toISOString(),
+    }));
+  } catch {
+    return [];
   }
-  await sleep(300);
-  return mockParticipants[eventId] || [];
 }
 
 export async function toggleEventAttendance(
-  eventId: number,
-  userId: number,
+  eventId: string | number,
+  userId: string | number,
   userName: string,
   userEmail: string
 ): Promise<{ joined: boolean; count: number }> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<{ joined: boolean; count: number }>(
-      `${ENDPOINTS.EVENTS.DETAIL(eventId)}toggle-attendance/`
-    );
-    return data;
-  }
-  await sleep(300);
-  const list = mockParticipants[eventId] || [];
-  const existingIndex = list.findIndex((p) => p.userId === userId);
-
-  if (existingIndex >= 0) {
-    list.splice(existingIndex, 1);
-    mockParticipants[eventId] = list;
-    return { joined: false, count: list.length };
-  } else {
-    list.push({
-      id: Date.now(),
-      eventId,
-      userId,
-      userName,
-      userEmail,
-      status: 'accepted',
-      joinedAt: new Date().toISOString(),
-    });
-    mockParticipants[eventId] = list;
-    return { joined: true, count: list.length };
+  try {
+    // Attempt join
+    await apiClient.post(ENDPOINTS.EVENTS.JOIN(eventId));
+    return { joined: true, count: 1 };
+  } catch (err: any) {
+    // If already joined, leave
+    try {
+      await apiClient.delete(ENDPOINTS.EVENTS.LEAVE(eventId));
+      return { joined: false, count: 0 };
+    } catch {
+      return { joined: false, count: 0 };
+    }
   }
 }
 

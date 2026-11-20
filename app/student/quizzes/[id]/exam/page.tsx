@@ -30,16 +30,16 @@ interface ShuffledQuestion extends Question {
 export default function StudentOnlineExamRoomPage() {
   const params = useParams();
   const router = useRouter();
-  const quizId = Number(params.id) || 1;
+  const quizId = (params.id as string) || '';
 
   // Active question index
   const [currentIdx, setCurrentIdx] = React.useState<number>(0);
 
   // User state: Map of questionId -> selectedOptionId
-  const [answers, setAnswers] = React.useState<Record<number, number>>({});
+  const [answers, setAnswers] = React.useState<Record<string, string | number>>({});
 
   // Flagged questions for review: Set of questionIds
-  const [flagged, setFlagged] = React.useState<Set<number>>(new Set());
+  const [flagged, setFlagged] = React.useState<Set<string | number>>(new Set());
 
   // Confirm submit modal
   const [isConfirmModalOpen, setIsConfirmModalOpen] = React.useState(false);
@@ -53,19 +53,20 @@ export default function StudentOnlineExamRoomPage() {
     queryFn: () => quizService.getQuizById(quizId),
   });
 
-  // Fetch raw questions
-  const { data: rawQuestions = [] } = useQuery({
-    queryKey: ['student', 'quiz-questions', quizId],
-    queryFn: () => quizService.getQuizQuestions(quizId),
+  // Start attempt and fetch questions from server
+  const { data: attemptData } = useQuery({
+    queryKey: ['student', 'start-quiz', quizId],
+    queryFn: () => quizService.startQuizAttempt(quizId),
+    staleTime: Infinity,
   });
 
   // Shuffled questions (Options shuffled on initial load to prevent cheat sheets)
   const [questions, setQuestions] = React.useState<ShuffledQuestion[]>([]);
 
   React.useEffect(() => {
+    const rawQuestions = attemptData?.questions || [];
     if (rawQuestions.length > 0 && questions.length === 0) {
       const prepared: ShuffledQuestion[] = rawQuestions.map((q) => {
-        // Deterministic or pseudorandom shuffle
         const shuffled = [...q.options].sort(() => Math.random() - 0.5);
         return {
           ...q,
@@ -74,7 +75,7 @@ export default function StudentOnlineExamRoomPage() {
       });
       setQuestions(prepared);
     }
-  }, [rawQuestions, questions.length]);
+  }, [attemptData, questions.length]);
 
   // Page leave warning listener (beforeunload)
   React.useEffect(() => {
@@ -105,17 +106,17 @@ export default function StudentOnlineExamRoomPage() {
       const submissionPayload: QuizSubmission = {
         quizId,
         answers: Object.entries(answers).map(([qId, optId]) => ({
-          questionId: Number(qId),
+          questionId: qId,
           selectedOptionId: optId,
           textAnswer: null,
         })),
       };
 
-      await quizService.submitQuizAttempt(quizId, Date.now(), submissionPayload);
+      await quizService.submitQuizAttempt(quizId, attemptData?.id || Date.now(), submissionPayload);
       toast.success('Exam successfully graded!');
       router.push(`/student/quizzes/${quizId}/results`);
-    } catch {
-      toast.error('Failed to submit exam. Please try again.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit exam. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -124,7 +125,7 @@ export default function StudentOnlineExamRoomPage() {
   const answeredCount = Object.keys(answers).length;
   const unansweredCount = questions.length - answeredCount;
 
-  const toggleFlag = (qId: number) => {
+  const toggleFlag = (qId: string | number) => {
     setFlagged((prev) => {
       const next = new Set(prev);
       if (next.has(qId)) {
@@ -138,10 +139,10 @@ export default function StudentOnlineExamRoomPage() {
     });
   };
 
-  const handleSelectOption = (qId: number, optId: number) => {
+  const handleSelectOption = (qId: string | number, optId: string | number) => {
     setAnswers((prev) => ({
       ...prev,
-      [qId]: optId,
+      [String(qId)]: optId,
     }));
   };
 
@@ -156,7 +157,7 @@ export default function StudentOnlineExamRoomPage() {
     );
   }
 
-  const durationSeconds = (quiz?.duration || quiz?.timeLimit || 20) * 60;
+  const durationSeconds = Number(quiz?.duration || quiz?.timeLimit || 20) * 60;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">

@@ -1,89 +1,64 @@
 import apiClient from '@/lib/api/axios';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { sleep } from '@/lib/utils';
+import { getUserRole } from '@/lib/auth';
 import type { Course, CourseWithLessons } from '@/types/course';
 import type { PaginatedResponse } from '@/types/api';
 import type { CourseFormValues } from '@/lib/validators';
-import { getLessons } from './lesson.service';
 
-const HAS_API = !!process.env.NEXT_PUBLIC_API_URL;
+interface BackendCourseSummary {
+  id: string;
+  title: string;
+  description: string;
+  userGroup: string | null;
+  totalLessons: number;
+  completedLessons: number;
+  progressPercent: number;
+}
 
-let mockCourses: Course[] = [
-  {
-    id: 1,
-    title: 'Full-Stack Web Development with React & Node.js',
-    description:
-      'Learn to build modern full-stack applications from scratch using React 18, Node.js, Express, and MongoDB. Covers REST APIs, authentication, deployment, and performance optimization.',
-    coverImage: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=1200&q=80',
-    instructor: 'Alice Admin',
+interface BackendCourseDetail extends BackendCourseSummary {
+  lessons: Array<{
+    id: string;
+    title: string;
+    content: string;
+    video_url: string | null;
+    attachment_urls: string | null;
+    completed: boolean;
+    completedAt?: string | null;
+  }>;
+}
+
+function mapSummaryToCourse(c: BackendCourseSummary): Course {
+  return {
+    id: c.id,
+    title: c.title,
+    description: c.description || '',
+    coverImage: null,
+    instructor: 'Administrator',
     instructorAvatar: null,
-    group: 'Group Alpha',
+    group: c.userGroup || null,
+    userGroup: c.userGroup || null,
     isPublished: true,
-    lessonCount: 5,
-    enrolledCount: 38,
-    progress: 60,
-    createdAt: '2024-02-01T00:00:00Z',
-    updatedAt: '2024-11-01T00:00:00Z',
-  },
-  {
-    id: 2,
-    title: 'Python for Data Science & Machine Learning',
-    description:
-      'Master Python programming for data analysis, visualization, and machine learning. Includes pandas, NumPy, Matplotlib, scikit-learn, and neural networks fundamentals.',
-    coverImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80',
-    instructor: 'Alice Admin',
-    instructorAvatar: null,
-    group: 'Group Alpha',
-    isPublished: true,
-    lessonCount: 6,
-    enrolledCount: 29,
-    progress: 35,
-    createdAt: '2024-02-15T00:00:00Z',
-    updatedAt: '2024-10-15T00:00:00Z',
-  },
-  {
-    id: 3,
-    title: 'Enterprise UI/UX Design & Design Systems',
-    description:
-      'Understand the principles of user-centered design. Learn Figma, design tokens, responsive auto-layout, wireframing, and creating dark theme design systems.',
-    coverImage: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=1200&q=80',
-    instructor: 'Alice Admin',
-    instructorAvatar: null,
-    group: 'Group Beta',
-    isPublished: true,
-    lessonCount: 4,
-    enrolledCount: 22,
-    progress: 10,
-    createdAt: '2024-03-01T00:00:00Z',
-    updatedAt: '2024-10-01T00:00:00Z',
-  },
-  {
-    id: 4,
-    title: 'DevOps, Docker & Cloud Infrastructure',
-    description:
-      'Master CI/CD workflows, Docker containerization, Kubernetes clusters, and cloud deployments on AWS and Vercel.',
-    coverImage: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?auto=format&fit=crop&w=1200&q=80',
-    instructor: 'Alice Admin',
-    instructorAvatar: null,
-    group: 'Group Gamma',
-    isPublished: false,
-    lessonCount: 3,
+    lessonCount: c.totalLessons || 0,
+    totalLessons: c.totalLessons || 0,
+    completedLessons: c.completedLessons || 0,
     enrolledCount: 0,
-    progress: 0,
-    createdAt: '2024-04-01T00:00:00Z',
-    updatedAt: '2024-11-10T00:00:00Z',
-  },
-];
+    progress: Math.round(c.progressPercent || 0),
+    progressPercent: c.progressPercent || 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 export async function getCourses(): Promise<PaginatedResponse<Course>> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<PaginatedResponse<Course>>(ENDPOINTS.COURSES.LIST);
-    return data;
-  }
-  await sleep(400);
+  const role = getUserRole();
+  const url = role === 'admin' ? ENDPOINTS.COURSES.LIST : ENDPOINTS.COURSES.STUDENT_LIST;
+
+  const { data } = await apiClient.get<BackendCourseSummary[]>(url);
+  const courses = (Array.isArray(data) ? data : []).map(mapSummaryToCourse);
+
   return {
-    results: [...mockCourses],
-    count: mockCourses.length,
+    results: courses,
+    count: courses.length,
     next: null,
     previous: null,
     totalPages: 1,
@@ -91,67 +66,96 @@ export async function getCourses(): Promise<PaginatedResponse<Course>> {
   };
 }
 
-export async function getCourseById(id: number): Promise<CourseWithLessons> {
-  if (HAS_API) {
-    const { data } = await apiClient.get<CourseWithLessons>(ENDPOINTS.COURSES.DETAIL(id));
-    return data;
+export async function getCourseById(id: string | number): Promise<CourseWithLessons> {
+  const role = getUserRole();
+  const url = ENDPOINTS.COURSES.STUDENT_DETAIL(id);
+
+  try {
+    const { data } = await apiClient.get<BackendCourseDetail>(url);
+    const course = mapSummaryToCourse(data);
+    const lessons = (data.lessons || []).map((l, index) => ({
+      id: l.id,
+      courseId: data.id,
+      title: l.title,
+      content: l.content || '',
+      videoUrl: l.video_url || null,
+      video_url: l.video_url || null,
+      attachment_urls: l.attachment_urls || null,
+      duration: 30,
+      order: index + 1,
+      isPublished: true,
+      completed: l.completed || false,
+      completedAt: l.completedAt || null,
+      attachments: l.attachment_urls
+        ? [
+            {
+              id: `att-${l.id}`,
+              lessonId: l.id,
+              name: 'Resource Attachment',
+              file: l.attachment_urls,
+            },
+          ]
+        : [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+
+    return {
+      ...course,
+      lessons,
+    };
+  } catch {
+    // If student detail endpoint is not accessible (or admin viewing course not yet in group)
+    const allCourses = await getCourses();
+    const course = allCourses.results.find((c) => String(c.id) === String(id));
+    if (!course) throw new Error('Course not found');
+    return {
+      ...course,
+      lessons: [],
+    };
   }
-  await sleep(400);
-  const course = mockCourses.find((c) => c.id === id);
-  if (!course) throw new Error('Course not found');
-  const lessons = await getLessons(id);
-  return { ...course, lessons };
 }
 
 export async function createCourse(payload: CourseFormValues): Promise<Course> {
-  if (HAS_API) {
-    const { data } = await apiClient.post<Course>(ENDPOINTS.COURSES.CREATE, payload);
-    return data;
-  }
-  await sleep(500);
-  const newCourse: Course = {
-    id: Date.now(),
-    title: payload.title,
-    description: payload.description,
+  const { data } = await apiClient.post<BackendCourseSummary>(ENDPOINTS.COURSES.CREATE, {
+    title: payload.title.trim(),
+    description: payload.description?.trim() || '',
+    userGroup: payload.group?.trim() || null,
+  });
+
+  return mapSummaryToCourse(data);
+}
+
+export async function updateCourse(
+  id: string | number,
+  payload: Partial<CourseFormValues>
+): Promise<Course> {
+  await apiClient.put(ENDPOINTS.COURSES.UPDATE(id), {
+    title: payload.title?.trim(),
+    description: payload.description?.trim() || '',
+    userGroup: payload.group?.trim() || null,
+  });
+
+  return {
+    id,
+    title: payload.title || '',
+    description: payload.description || '',
     coverImage: null,
-    instructor: 'Alice Admin',
+    instructor: 'Administrator',
     instructorAvatar: null,
-    group: payload.group ?? null,
-    isPublished: payload.isPublished ?? false,
+    group: payload.group || null,
+    userGroup: payload.group || null,
+    isPublished: payload.isPublished ?? true,
     lessonCount: 0,
     enrolledCount: 0,
     progress: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  mockCourses.unshift(newCourse);
-  return newCourse;
 }
 
-export async function updateCourse(id: number, payload: Partial<CourseFormValues>): Promise<Course> {
-  if (HAS_API) {
-    const { data } = await apiClient.patch<Course>(ENDPOINTS.COURSES.UPDATE(id), payload);
-    return data;
-  }
-  await sleep(400);
-  const index = mockCourses.findIndex((c) => c.id === id);
-  if (index === -1) throw new Error('Course not found');
-  const updated: Course = {
-    ...mockCourses[index],
-    ...payload,
-    updatedAt: new Date().toISOString(),
-  };
-  mockCourses[index] = updated;
-  return updated;
-}
-
-export async function deleteCourse(id: number): Promise<void> {
-  if (HAS_API) {
-    await apiClient.delete(ENDPOINTS.COURSES.DELETE(id));
-    return;
-  }
-  await sleep(400);
-  mockCourses = mockCourses.filter((c) => c.id !== id);
+export async function deleteCourse(id: string | number): Promise<void> {
+  await apiClient.delete(ENDPOINTS.COURSES.DELETE(id));
 }
 
 export const courseService = {

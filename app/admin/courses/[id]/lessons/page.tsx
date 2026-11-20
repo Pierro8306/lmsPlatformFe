@@ -40,7 +40,7 @@ export default function AdminCourseLessonsPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const courseId = Number(params.id) || 1;
+  const courseId = (params.id as string) || '';
 
   // Active tab in this screen: "Curriculum" vs "Dual-List Assignment"
   const [activeTab, setActiveTab] = React.useState<'curriculum' | 'assignment'>('curriculum');
@@ -78,7 +78,7 @@ export default function AdminCourseLessonsPage() {
 
   // Available lessons in the pool that are not assigned to this course
   const unassignedLessons = allLessons.filter(
-    (l) => l.courseId !== courseId
+    (l) => String(l.courseId) !== String(courseId)
   );
 
   // Lesson Save mutation (create/edit)
@@ -112,7 +112,7 @@ export default function AdminCourseLessonsPage() {
 
   // Delete lesson mutation
   const deleteMutation = useMutation({
-    mutationFn: (lessonId: number) => lessonService.deleteLesson(courseId, lessonId),
+    mutationFn: (lessonId: string | number) => lessonService.deleteLesson(courseId, lessonId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'course-lessons', courseId] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'all-lessons'] });
@@ -126,7 +126,7 @@ export default function AdminCourseLessonsPage() {
 
   // Dual list assignment mutations
   const assignMutation = useMutation({
-    mutationFn: (lessonId: number) => lessonService.assignLessonToCourse(lessonId, courseId),
+    mutationFn: (lessonId: string | number) => lessonService.assignLessonToCourse(lessonId, courseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'course-lessons', courseId] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'all-lessons'] });
@@ -135,7 +135,7 @@ export default function AdminCourseLessonsPage() {
   });
 
   const unassignMutation = useMutation({
-    mutationFn: (lessonId: number) => lessonService.assignLessonToCourse(lessonId, null),
+    mutationFn: (lessonId: string | number) => lessonService.assignLessonToCourse(lessonId, null, courseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'course-lessons', courseId] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'all-lessons'] });
@@ -172,10 +172,10 @@ export default function AdminCourseLessonsPage() {
   const handleOpenEditEditor = (lesson: Lesson) => {
     setEditingLesson(lesson);
     setFormTitle(lesson.title);
-    setFormContent(lesson.content);
+    setFormContent(lesson.content || '');
     setFormVideoUrl(lesson.videoUrl || '');
     setFormDuration(lesson.duration || 45);
-    setFormPublished(lesson.isPublished);
+    setFormPublished(!!lesson.isPublished);
     setUploadedAttachmentName(lesson.attachments?.[0]?.name || null);
     setIsEditorOpen(true);
   };

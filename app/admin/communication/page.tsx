@@ -111,7 +111,7 @@ export default function AdminCommunicationPage() {
   });
 
   const deleteAnnounceMutation = useMutation({
-    mutationFn: (id: number) => announcementService.deleteAnnouncement(id),
+    mutationFn: (id: string | number) => announcementService.deleteAnnouncement(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'announcements'] });
       toast.success('Announcement removed');
@@ -148,7 +148,7 @@ export default function AdminCommunicationPage() {
   });
 
   const deleteEventMutation = useMutation({
-    mutationFn: (id: number) => eventService.deleteEvent(id),
+    mutationFn: (id: string | number) => eventService.deleteEvent(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'events'] });
       toast.success('Event deleted');
@@ -168,9 +168,9 @@ export default function AdminCommunicationPage() {
   const handleOpenEditAnnounce = (a: Announcement) => {
     setEditingAnnounce(a);
     setAnnTitle(a.title);
-    setAnnContent(a.content);
-    setAnnTarget(a.target);
-    setAnnPinned(a.isPinned);
+    setAnnContent(a.content || '');
+    setAnnTarget(a.target || 'all');
+    setAnnPinned(!!a.isPinned);
     setIsAnnounceModalOpen(true);
   };
 
@@ -190,12 +190,12 @@ export default function AdminCommunicationPage() {
     setEditingEvent(ev);
     setEventTitle(ev.title);
     setEventDescription(ev.description || '');
-    setEventType(ev.type);
-    setEventStartDate(new Date(ev.startDate).toISOString().slice(0, 16));
+    setEventType(ev.type || 'live_session');
+    setEventStartDate(new Date(ev.startDate || Date.now()).toISOString().slice(0, 16));
     setEventEndDate(
       ev.endDate
         ? new Date(ev.endDate).toISOString().slice(0, 16)
-        : new Date(ev.startDate).toISOString().slice(0, 16)
+        : new Date(ev.startDate || Date.now()).toISOString().slice(0, 16)
     );
     setEventLocation(ev.location || '');
     setEventMeetingUrl(ev.meetingUrl || '');
@@ -279,7 +279,7 @@ export default function AdminCommunicationPage() {
                       </Badge>
                       <span className="text-xs text-text-muted">
                         Posted by <strong>{ann.author}</strong> •{' '}
-                        {format(new Date(ann.createdAt), 'MMM d, yyyy h:mm a')}
+                        {format(new Date(ann.createdAt || Date.now()), 'MMM d, yyyy h:mm a')}
                       </span>
                     </div>
 
@@ -352,7 +352,7 @@ export default function AdminCommunicationPage() {
                       }
                       className="text-xs capitalize"
                     >
-                      {ev.type.replace('_', ' ')}
+                      {(ev.type || 'other').replace('_', ' ')}
                     </Badge>
 
                     <div className="flex items-center gap-1">
@@ -389,7 +389,7 @@ export default function AdminCommunicationPage() {
                   <div className="space-y-1.5 text-xs text-text-muted pt-1">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-accent-cyan" />
-                      <span>{format(new Date(ev.startDate), 'EEEE, MMM d • h:mm a')}</span>
+                      <span>{format(new Date(ev.startDate || Date.now()), 'EEEE, MMM d • h:mm a')}</span>
                     </div>
 
                     {ev.location && (
@@ -631,11 +631,11 @@ export default function AdminCommunicationPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-accent-indigo/20 text-accent-indigo flex items-center justify-center font-bold text-xs">
-                  {p.userName[0]}
+                  {(p.userName || 'U')[0]}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-text-primary">{p.userName}</p>
-                  <p className="text-xs text-text-muted">{p.userEmail}</p>
+                  <p className="text-sm font-semibold text-text-primary">{p.userName || 'Student'}</p>
+                  <p className="text-xs text-text-muted">{p.userEmail || ''}</p>
                 </div>
               </div>
 
@@ -644,7 +644,7 @@ export default function AdminCommunicationPage() {
                   Confirmed RSVP
                 </Badge>
                 <p className="text-[10px] text-text-muted mt-0.5">
-                  Joined: {format(new Date(p.joinedAt), 'MMM d, h:mm a')}
+                  Joined: {format(new Date(p.joinedAt || Date.now()), 'MMM d, h:mm a')}
                 </p>
               </div>
             </div>
